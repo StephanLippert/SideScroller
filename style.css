@@ -1,15 +1,38 @@
 body {
     margin: 0;
+    background-color: rgb(144, 148, 149);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    height: 100vh;
+}
+
+#spielfeld {
+    width: 1000px;
+    height: 600px;
+    background-color: rgb(152, 199, 240);
+    border: 3px solid black;
+
+    position: relative;
+
     overflow: hidden;
+}
+
+#boden {
+    position: absolute;
+    bottom: 0;
+
+    width: 100%;
+    height: 50px;
+
+    background-color: green;
 }
 
 #spieler {
     width: 50px;
     height: 50px;
-    background-color: red;
+    background-color: rgb(92, 34, 199);
 
     position: absolute;
-
-    left: 100px;
-    top: 200px;
 }

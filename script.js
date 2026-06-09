@@ -1,15 +1,45 @@
-const player = document.getElementById("spieler");
+const spieler = document.getElementById("spieler");
 
 let x = 100;
+let y = 550;
 
-document.addEventListener("keydown", (event) => {
+let schwerkraft = 1;
+let geschwindigkeitY = 0;
 
-    if (event.key === "ArrowRight") {
+let istAmBoden = true;
+
+document.addEventListener("keydown", (ereignis) => {
+
+    if (ereignis.key === "ArrowRight") {
         x += 10;
-        player.style.left = x + "px";
     }
-    if (event.key === "ArrowLeft") {
+
+    if (ereignis.key === "ArrowLeft") {
         x -= 10;
-        player.style.left = x + "px";
     }
+
+    if (ereignis.key === "ArrowUp" && istAmBoden) {
+        geschwindigkeitY = -15;
+        istAmBoden = false;
+    }
+
 });
+
+function spielSchleife() {
+
+    geschwindigkeitY += schwerkraft;
+    y += geschwindigkeitY;
+
+    if (y >= 550) {
+        y = 550;
+        geschwindigkeitY = 0;
+        istAmBoden = true;
+    }
+
+    spieler.style.left = x + "px";
+    spieler.style.top = y + "px";
+
+    requestAnimationFrame(spielSchleife);
+}
+
+spielSchleife();
