@@ -1,11 +1,19 @@
 const spieler = document.getElementById("spieler");
 
-let x = 100;
-let y = 550;
+// Spielfeld-Einstellungen
+const SPIELFELD_BREITE = 1000;
+const SPIELER_BREITE = 50;
+const BODEN_Y = 550;
 
+// Spielerposition
+let x = 100;
+let y = BODEN_Y;
+
+// Physik
 let schwerkraft = 1;
 let geschwindigkeitY = 0;
 
+// Spielerstatus
 let istAmBoden = true;
 
 // Speichert den Zustand der gedrückten Tasten
@@ -45,13 +53,23 @@ function spielSchleife() {
         x -= 5;
     }
 
+    // Linke Spielfeldgrenze
+    if (x < 0) {
+        x = 0;
+    }
+
+    // Rechte Spielfeldgrenze
+    if (x > SPIELFELD_BREITE - SPIELER_BREITE) {
+        x = SPIELFELD_BREITE - SPIELER_BREITE;
+    }
+
     // Schwerkraft anwenden
     geschwindigkeitY += schwerkraft;
     y += geschwindigkeitY;
 
     // Bodenprüfung
-    if (y >= 550) {
-        y = 550;
+    if (y >= BODEN_Y) {
+        y = BODEN_Y;
         geschwindigkeitY = 0;
         istAmBoden = true;
     }
