@@ -29,6 +29,11 @@ body {
     background-color: green;
 }
 
+.plattform {
+    position: absolute;
+    background-color: brown;
+}
+
 #spieler {
     width: 50px;
     height: 50px;
