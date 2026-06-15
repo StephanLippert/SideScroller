@@ -1,24 +1,59 @@
+// ==================================================
 // Elemente aus dem HTML holen
+// ==================================================
+
 const spielfeld = document.getElementById("spielfeld");
 const spieler = document.getElementById("spieler");
 
+
+// ==================================================
+// Bilder des Spielers
+// HIER DEINE URLS EINTRAGEN
+// ==================================================
+
+const BILD_START = "/images/spieler_stand.png";
+
+const BILD_LINKS_GEHEN = "/images/StickmangLaufenLinks.png";
+const BILD_LINKS_STEHEN = "/images/StickmangSeitenansichtLinks.png";
+const BILD_LINKS_SPRINGEN = "/images/StickmangSpringenLinks.png";
+
+const BILD_RECHTS_GEHEN = "/images/StickmangLaufenRechts.png";
+const BILD_RECHTS_STEHEN = "/images/StickmangSeitenansichtLiRechts.png";
+const BILD_RECHTS_SPRINGEN = "/images/StickmangSpringenRechts.png";
+
+
+// ==================================================
 // Größen direkt aus dem CSS lesen
+// ==================================================
+
 const SPIELFELD_BREITE = spielfeld.clientWidth;
 const SPIELER_BREITE = spieler.clientWidth;
 const SPIELER_HOEHE = spieler.clientHeight;
 
+
+// ==================================================
 // Spielkonstanten
+// ==================================================
+
 const BODEN_Y = 550;
 const LAUF_GESCHWINDIGKEIT = 5;
 const SPRUNG_KRAFT = -20;
 const SCHWERKRAFT = 1;
 
+
+// ==================================================
 // Plattformen
+// ==================================================
+
 const plattformen = [
-    { x: 100, y: 450, breite: 150, hoehe: 20 },
-    { x: 400, y: 350, breite: 200, hoehe: 20 },
-    { x: 750, y: 250, breite: 120, hoehe: 20 }
+    { x: 100, y: 300, breite: 160, hoehe: 20 },
+    { x: 400, y: 450, breite: 200, hoehe: 20 },
+    { x: 750, y: 300, breite: 130, hoehe: 20 }
 ];
+
+
+// Plattformen erzeugen
+
 for (let plattform of plattformen) {
 
     const element = document.createElement("div");
@@ -33,23 +68,51 @@ for (let plattform of plattformen) {
 
     spielfeld.appendChild(element);
 }
+
+
+// ==================================================
 // Spielerposition
+// ==================================================
+
 let x = 100;
 let y = BODEN_Y;
 
+
+// ==================================================
 // Physik
+// ==================================================
+
 let geschwindigkeitY = 0;
 
-// Spielerstatus
-let istAmBoden = true;
 
+// ==================================================
+// Spielerstatus
+// ==================================================
+
+let istAmBoden = true;
+let blickrichtung = "rechts";
+
+
+// ==================================================
 // Gedrückte Tasten
+// ==================================================
+
 let tasten = {};
 
 
-// ====================
+// ==================================================
+// Startbild setzen
+// ==================================================
+
+spieler.style.backgroundImage = `url("${BILD_START}")`;
+spieler.style.backgroundSize = "contain";
+spieler.style.backgroundRepeat = "no-repeat";
+spieler.style.backgroundPosition = "center";
+
+
+// ==================================================
 // Tastatursteuerung
-// ====================
+// ==================================================
 
 document.addEventListener("keydown", (ereignis) => {
 
@@ -71,20 +134,82 @@ document.addEventListener("keyup", (ereignis) => {
 });
 
 
-// ====================
+// ==================================================
+// Spielerbild aktualisieren
+// ==================================================
+
+function aktualisiereSpielerBild() {
+
+    // Springen links
+    if (!istAmBoden && blickrichtung === "links") {
+
+        spieler.style.backgroundImage =
+            `url("${BILD_LINKS_SPRINGEN}")`;
+
+        return;
+    }
+
+    // Springen rechts
+    if (!istAmBoden && blickrichtung === "rechts") {
+
+        spieler.style.backgroundImage =
+            `url("${BILD_RECHTS_SPRINGEN}")`;
+
+        return;
+    }
+
+    // Laufen links
+    if (tasten["ArrowLeft"]) {
+
+        spieler.style.backgroundImage =
+            `url("${BILD_LINKS_GEHEN}")`;
+
+        return;
+    }
+
+    // Laufen rechts
+    if (tasten["ArrowRight"]) {
+
+        spieler.style.backgroundImage =
+            `url("${BILD_RECHTS_GEHEN}")`;
+
+        return;
+    }
+
+    // Stehen links
+    if (blickrichtung === "links") {
+
+        spieler.style.backgroundImage =
+            `url("${BILD_LINKS_STEHEN}")`;
+
+        return;
+    }
+
+    // Stehen rechts
+
+    spieler.style.backgroundImage =
+        `url("${BILD_RECHTS_STEHEN}")`;
+}
+
+
+// ==================================================
 // Spielschleife
-// ====================
+// ==================================================
 
 function spielSchleife() {
 
-    // Bewegung nach rechts
+    // Rechts laufen
     if (tasten["ArrowRight"]) {
+
         x += LAUF_GESCHWINDIGKEIT;
+        blickrichtung = "rechts";
     }
 
-    // Bewegung nach links
+    // Links laufen
     if (tasten["ArrowLeft"]) {
+
         x -= LAUF_GESCHWINDIGKEIT;
+        blickrichtung = "links";
     }
 
     // Linke Grenze
@@ -101,7 +226,6 @@ function spielSchleife() {
     geschwindigkeitY += SCHWERKRAFT;
     y += geschwindigkeitY;
 
-    // Standardmäßig nicht auf einer Plattform
     let aufPlattform = false;
 
     const spielerUnterkante = y + SPIELER_HOEHE;
@@ -110,7 +234,7 @@ function spielSchleife() {
     const spielerLinks = x;
     const spielerRechts = x + SPIELER_BREITE;
 
-    // Alle Plattformen prüfen
+    // Plattformen prüfen
     for (let plattform of plattformen) {
 
         const beruehrtPlattformVonOben =
@@ -133,7 +257,7 @@ function spielSchleife() {
         }
     }
 
-    // Bodenprüfung nur wenn keine Plattform getroffen wurde
+    // Bodenprüfung
     if (!aufPlattform && y >= BODEN_Y) {
 
         y = BODEN_Y;
@@ -143,6 +267,15 @@ function spielSchleife() {
         istAmBoden = true;
     }
 
+    // In der Luft
+    if (!aufPlattform && y < BODEN_Y) {
+
+        istAmBoden = false;
+    }
+
+    // Bild aktualisieren
+    aktualisiereSpielerBild();
+
     // Spieler zeichnen
     spieler.style.left = x + "px";
     spieler.style.top = y + "px";
@@ -151,8 +284,8 @@ function spielSchleife() {
 }
 
 
-// ====================
-// Spielstart
-// ====================
+// ==================================================
+// Spiel starten
+// ==================================================
 
 spielSchleife();

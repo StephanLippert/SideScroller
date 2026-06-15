@@ -24,7 +24,7 @@ body {
     bottom: 0;
 
     width: 100%;
-    height: 50px;
+    height: 15px;
 
     background-color: green;
 }
@@ -37,7 +37,7 @@ body {
 #spieler {
     width: 50px;
     height: 50px;
-    background-color: rgb(92, 34, 199);
+    background-color: trancparent;
 
     position: absolute;
 }
