@@ -11,7 +11,7 @@
 const spielfeld = document.getElementById("spielfeld");
 const spieler = document.getElementById("spieler");
 const punkteAnzeige = document.getElementById("punkteAnzeige");
-
+const zeitAnzeige = document.getElementById("zeitAnzeige");
 
 // -----> Bilder des Spielers <-----
 // ==================================================
@@ -600,6 +600,24 @@ let blickrichtung = "rechts";
 
 let punkte = 0;
 
+
+// -----> Timer <-----
+// ==================================================
+// Speichert die verbleibende Spielzeit in Sekunden.
+// Das Spiel startet mit 60 Sekunden.
+let spielZeit = 60;
+
+
+// Speichert, ob das Spiel bereits beendet wurde.
+//
+// false
+// → Spiel läuft.
+//
+// true
+// → Spiel ist beendet.
+let spielBeendet = false;
+
+
 // -----> Punkteanzeige aktualisieren <-----
 // ==================================================
 
@@ -617,7 +635,6 @@ let punkte = 0;
 // Münzen: 1
 
 function aktualisierePunkteAnzeige() {
-
     punkteAnzeige.textContent =
         "Münzen: " + punkte;
 }
@@ -700,8 +717,7 @@ document.addEventListener("keydown", (ereignis) => {
 });
 
 // Listener für das Loslassen einer Taste.
-// Diese Funktion wird aufgerufen,
-// sobald eine Taste losgelassen wird.
+// Diese Funktion wird aufgerufen, sobald eine Taste losgelassen wird.
 document.addEventListener("keyup", (ereignis) => {
 
     // Die Taste wird wieder auf false gesetzt.
@@ -828,6 +844,12 @@ function aktualisiereSpielerBild() {
 // - Bildwechsel
 // - Zeichnen des Spielers
 function spielSchleife() {
+
+    // Ist das Spiel beendet?
+    // Dann keine weitere Bewegung mehr.
+    if (spielBeendet) {
+        return;
+    }
 
     // -----> Rechts laufen <-----
     // ==================================================
@@ -1071,9 +1093,57 @@ function spielSchleife() {
 };
 
 aktualisierePunkteAnzeige();
-// -----> Spiel starten <-----
+
+aktualisiereZeitAnzeige();
+
+
+// -----> Spieltimer starten <-----
 // ==================================================
 
+// Diese Funktion wird
+// jede Sekunde aufgerufen.
+const timer = setInterval(() => {
+    // Ist das Spiel bereits beendet?
+    if (spielBeendet) {
+        return;
+    }
+    // Eine Sekunde abziehen.
+    spielZeit--;
+
+    // Anzeige aktualisieren.
+    aktualisiereZeitAnzeige();
+
+    // Zeit abgelaufen?
+    if (spielZeit <= 0) {
+        // Spiel beenden.
+        spielBeendet = true;
+
+        // Timer anhalten.
+        clearInterval(timer);
+
+        // Nachricht anzeigen.
+        alert(
+            "Spiel beendet!\n\n" +
+            "Du hast " +
+            punkte +
+            " Münzen gesammelt."
+        );
+    }
+}, 1000);
+
+
+// -----> Timeranzeige aktualisieren <-----
+// ==================================================
+
+// Schreibt die verbleibende Zeit in das HTML.
+function aktualisiereZeitAnzeige() {
+
+    zeitAnzeige.textContent =
+        "Zeit: " + spielZeit;
+}
+
+// -----> Spiel starten <-----
+// ==================================================
 
 // Die Spielschleife zum ersten Mal aufrufen.
 // Warum nur einmal?
