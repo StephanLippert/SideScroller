@@ -312,6 +312,74 @@ for (let muenze of muenzen) {
     spielfeld.appendChild(element);
 
 }
+
+// -----> Neue Münze erzeugen <-----
+// ==================================================
+
+// Erstellt eine neue Münze an einer zufälligen Position.
+function neueMuenzeErzeugen() {
+
+    // Zufällige X-Position.
+    const zufallX =
+        Math.floor(Math.random() * (SPIELFELD_BREITE - 40));
+
+    // Zufällig entscheiden:
+    // Plattform oder Boden.
+    const typ =
+        Math.random() < 0.5 ? "boden" : "plattform";
+
+    let y;
+    let startY;
+
+    // Boden-Münze.
+    if (typ === "boden") {
+
+        y = BODEN_Y;
+        startY = BODEN_Y + 50;
+    }
+
+    // Plattform-Münze.
+    else {
+        // Zufällige Plattform auswählen.
+        const plattform =
+            plattformen[
+            Math.floor(Math.random() * plattformen.length)
+            ];
+
+        y = plattform.y - 50;
+        startY = y - 150;
+    }
+
+    // Neue Münze als Objekt erzeugen.
+    const muenze = {
+
+        x: zufallX,
+        y: y,
+        startY: startY,
+        typ: typ,
+        eingesammelt: false,
+        animationFertig: false
+    };
+
+    // HTML-Element erzeugen.
+    const element =
+        document.createElement("div");
+    element.classList.add("muenze");
+    element.classList.add("muenzeDrehen");
+    element.style.left =
+        muenze.x + "px";
+
+    element.style.top =
+        muenze.startY + "px";
+
+    muenze.element = element;
+    spielfeld.appendChild(element);
+
+    // Neue Münze ins Array speichern.
+    muenzen.push(muenze);
+}
+
+
 // -----> Münzanimation starten <-----
 // ==================================================
 
@@ -948,6 +1016,33 @@ function spielSchleife() {
     // ob Münzen eingesammelt wurden.
 
     pruefeMuenzen();
+
+    pruefeAlleMuenzen();
+
+    // -----> Prüfen ob alle Münzen eingesammelt wurden <-----
+    // ==================================================
+
+    function pruefeAlleMuenzen() {
+
+        // Gibt es noch eine Münze,
+        // die nicht eingesammelt wurde?
+        const nochVorhanden =
+            muenzen.some(muenze => !muenze.eingesammelt);
+
+        // Wenn keine mehr vorhanden ist,
+        // werden vier neue erzeugt.
+        if (!nochVorhanden) {
+
+            // Altes Array leeren.
+            muenzen.length = 0;
+
+            // Vier neue Münzen erzeugen.
+            for (let i = 0; i < 4; i++) {
+
+                neueMuenzeErzeugen();
+            }
+        }
+    }
 
     // -----> Passendes Bild auswählen <-----
     // ==================================================
