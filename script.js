@@ -10,6 +10,7 @@
 // (z.B. spielfeld) gespeichert, damit hier darauf zugegriffen werden kann.
 const spielfeld = document.getElementById("spielfeld");
 const spieler = document.getElementById("spieler");
+const punkteAnzeige = document.getElementById("punkteAnzeige");
 
 
 // -----> Bilder des Spielers <-----
@@ -198,6 +199,253 @@ for (let plattform of plattformen) {
     spielfeld.appendChild(element);
 }
 
+// -----> Münzen <-----
+// ==================================================
+
+
+// Jede Münze besitzt:
+//
+// x
+// → horizontale Position.
+//
+// y
+// → endgültige Position.
+//
+// startY
+// → Startposition der Animation.
+//
+// typ
+// → bestimmt die Animation.
+//
+// "plattform"
+// → Münze kommt von oben.
+//
+// "boden"
+// → Münze kommt aus dem Boden.
+//
+// eingesammelt
+// → verhindert mehrfaches Einsammeln.
+//
+// animationFertig
+// → verhindert Einsammeln während des Erscheinens.
+//
+// element
+// → speichert das HTML-Element.
+
+
+
+const muenzen = [
+
+
+    // Münze auf einer Plattform.
+    {
+        x: 170,
+        y: 250,
+        startY: 100,
+        typ: "plattform",
+        eingesammelt: false,
+        animationFertig: false
+    },
+
+    // Münze auf dem Boden.
+    {
+        x: 300,
+        y: BODEN_Y,
+        startY: BODEN_Y + 50,
+        typ: "boden",
+        eingesammelt: false,
+        animationFertig: false
+    },
+
+    // Weitere Plattform-Münze.
+    {
+        x: 500,
+        y: 400,
+        startY: 250,
+        typ: "plattform",
+        eingesammelt: false,
+        animationFertig: false
+    },
+
+    // Weitere Boden-Münze.
+    {
+        x: 700,
+        y: BODEN_Y,
+        startY: BODEN_Y + 50,
+        typ: "boden",
+        eingesammelt: false,
+        animationFertig: false
+    }
+];
+
+
+// -----> Münzen erzeugen <-----
+// ==================================================
+
+
+// Jede Münze aus dem Array wird als HTML-Element erzeugt.
+for (let muenze of muenzen) {
+
+    // Neues HTML-Element erstellen.
+    const element = document.createElement("div");
+
+    // CSS-Klasse hinzufügen.
+    element.classList.add("muenze");
+
+    // Die dauerhafte Drehanimation aktivieren.
+    element.classList.add("muenzeDrehen");
+
+    // Startposition setzen.
+    element.style.left = muenze.x + "px";
+    element.style.top = muenze.startY + "px";
+
+
+    // HTML-Element speichern.
+    // Dadurch kann die Münze später:
+    //
+    // - bewegt werden
+    // - animiert werden
+    // - entfernt werden
+    muenze.element = element;
+
+    // Münze ins Spielfeld einfügen.
+    spielfeld.appendChild(element);
+
+}
+// -----> Münzanimation starten <-----
+// ==================================================
+
+// Diese Funktion lässt die Münzen an ihre endgültige Position fahren.
+function animiereMuenzen() {
+
+    // Alle Münzen überprüfen.
+    for (let muenze of muenzen) {
+
+        // Bereits fertige Animationen überspringen.
+        if (muenze.animationFertig) {
+            continue;
+        }
+
+        // Plattform-Münzen kommen von oben.
+        if (muenze.typ === "plattform") {
+
+            // Langsam nach unten bewegen.
+            muenze.startY += 2;
+
+            // Ziel erreicht?
+            if (muenze.startY >= muenze.y) {
+
+                // Exakte Position setzen.
+                muenze.startY = muenze.y;
+
+                // Animation abschließen.
+                muenze.animationFertig = true;
+            }
+
+        }
+
+        // Boden-Münzen kommen aus dem Boden.
+        if (muenze.typ === "boden") {
+
+            // Langsam nach oben bewegen.
+            muenze.startY -= 2;
+
+            // Ziel erreicht?
+            if (muenze.startY <= muenze.y - 30) {
+
+                // Exakte Position setzen.
+                muenze.startY = muenze.y - 30;
+
+                // Animation abschließen.
+                muenze.animationFertig = true;
+            }
+        }
+
+        // Neue Position anwenden.
+        muenze.element.style.top = muenze.startY + "px";
+    }
+}
+
+
+// -----> Münzen überprüfen <-----
+// ==================================================
+
+
+// Prüft jede Spielrunde, ob der Spieler eine Münze berührt.
+function pruefeMuenzen() {
+
+    // Position des Spielers berechnen.
+    const spielerLinks = x;
+    const spielerRechts =
+        x + SPIELER_BREITE;
+
+    const spielerOben = y;
+    const spielerUnten =
+        y + SPIELER_HOEHE;
+
+    // Jede Münze prüfen.
+    for (let muenze of muenzen) {
+
+        // Bereits eingesammelte Münzen werden übersprungen.
+        if (muenze.eingesammelt) {
+            continue;
+        }
+
+        // Münzen dürfen erst eingesammelt werden, wenn sie fertig erschienen sind.
+        if (!muenze.animationFertig) {
+            continue;
+        }
+
+        // Münzposition bestimmen.
+        const muenzeLinks = muenze.x;
+        const muenzeRechts =
+            muenze.x + 30;
+
+        const muenzeOben =
+            muenze.startY;
+
+        const muenzeUnten =
+            muenze.startY + 30;
+
+        // Prüfen, ob Spieler und Münze sich berühren.
+        const beruehrtMuenze =
+            spielerRechts > muenzeLinks &&
+
+            spielerLinks < muenzeRechts &&
+
+            spielerUnten > muenzeOben &&
+
+            spielerOben < muenzeUnten;
+
+        // Münze getroffen?
+        if (beruehrtMuenze) {
+
+            // Status ändern.
+            muenze.eingesammelt = true;
+
+            // CSS-Animation starten.
+            muenze.element.classList.remove(
+                "muenzeDrehen"
+            );
+
+            muenze.element.classList.add(
+                "muenzeEingesammelt"
+            );
+
+            // Nach der Animation Element entfernen.
+            setTimeout(() => {
+                muenze.element.remove();
+            }, 400);
+
+            // Punkt hinzufügen.
+            punkte++;
+
+            // Anzeige aktualisieren.
+            aktualisierePunkteAnzeige();
+        }
+    }
+}
+
 
 // -----> Spielerposition <-----
 // ==================================================
@@ -275,6 +523,38 @@ let istAmBoden = true;
 let blickrichtung = "rechts";
 
 
+// -----> Punkte <-----
+// ==================================================
+
+
+// Speichert die Anzahl
+// der eingesammelten Münzen.
+
+let punkte = 0;
+
+// -----> Punkteanzeige aktualisieren <-----
+// ==================================================
+
+
+// Diese Funktion schreibt
+// den aktuellen Punktestand
+// in das HTML-Element.
+//
+// Beispiel:
+//
+// Münzen: 0
+//
+// wird zu:
+//
+// Münzen: 1
+
+function aktualisierePunkteAnzeige() {
+
+    punkteAnzeige.textContent =
+        "Münzen: " + punkte;
+}
+
+
 // -----> Gedrückte Tasten <-----
 // ==================================================
 
@@ -283,15 +563,12 @@ let blickrichtung = "rechts";
 // Beispiel:
 //
 // Spieler drückt Pfeil rechts:
-//
 // tasten["ArrowRight"] = true;
 //
 // Spieler lässt Pfeil rechts los:
-//
 // tasten["ArrowRight"] = false;
 //
-// Dadurch kann das Spiel jederzeit prüfen,
-// welche Tasten gerade gehalten werden.
+// Dadurch kann das Spiel jederzeit prüfen, welche Tasten gerade gehalten werden.
 let tasten = {};
 
 
@@ -299,7 +576,6 @@ let tasten = {};
 // ==================================================
 
 // Hintergrundbild des Spieler-Elements setzen.
-//
 // Es wird das zuvor definierte Startbild geladen.
 spieler.style.backgroundImage = `url("${BILD_START}")`;
 
@@ -308,24 +584,18 @@ spieler.style.backgroundImage = `url("${BILD_START}")`;
 //
 // "contain" bedeutet:
 //
-// Das Bild wird so skaliert,
-// dass es komplett in das Element passt.
-//
+// Das Bild wird so skaliert, dass es komplett in das Element passt.
 // Nichts wird abgeschnitten.
 spieler.style.backgroundSize = "contain";
 
 
 // Das Bild soll nicht mehrfach wiederholt werden.
-//
-// Standardmäßig könnten Hintergrundbilder gekachelt
-// werden.
-//
+// Standardmäßig könnten Hintergrundbilder gekachelt werden.
 // Mit "no-repeat" wird das verhindert.
 spieler.style.backgroundRepeat = "no-repeat";
 
 
 // Das Bild wird mittig im Element ausgerichtet.
-//
 // Horizontal: Mitte
 // Vertikal: Mitte
 spieler.style.backgroundPosition = "center";
@@ -340,10 +610,7 @@ spieler.style.backgroundPosition = "center";
 document.addEventListener("keydown", (ereignis) => {
 
     // Die gedrückte Taste wird im Objekt gespeichert.
-    //
     // Beispiel für drücken der Pfeiltaste rechts:
-    //
-    // tasten["ArrowRight"] = true
     tasten[ereignis.key] = true;
 
 
@@ -361,9 +628,7 @@ document.addEventListener("keydown", (ereignis) => {
         // Dadurch wird verhindert,
         // dass direkt erneut gesprungen werden kann.
         istAmBoden = false;
-
     }
-
 });
 
 // Listener für das Loslassen einer Taste.
@@ -381,10 +646,8 @@ document.addEventListener("keyup", (ereignis) => {
     // Nachher:
     // tasten["ArrowRight"] = false
     //
-    // Dadurch weiß das Spiel,
-    // dass die Taste nicht mehr gehalten wird.
+    // Dadurch weiß das Spiel, dass die Taste nicht mehr gehalten wird.
     tasten[ereignis.key] = false;
-
 });
 
 
@@ -672,6 +935,20 @@ function spielSchleife() {
         istAmBoden = false;
     }
 
+    // -----> Münzen aktualisieren <-----
+    // ==================================================
+
+
+    // Münzen bewegen.
+
+    animiereMuenzen();
+
+
+    // Prüfen,
+    // ob Münzen eingesammelt wurden.
+
+    pruefeMuenzen();
+
     // -----> Passendes Bild auswählen <-----
     // ==================================================
 
@@ -698,7 +975,7 @@ function spielSchleife() {
     requestAnimationFrame(spielSchleife);
 };
 
-
+aktualisierePunkteAnzeige();
 // -----> Spiel starten <-----
 // ==================================================
 

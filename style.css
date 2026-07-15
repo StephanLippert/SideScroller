@@ -41,3 +41,400 @@ body {
 
     position: absolute;
 }
+
+/* Münze */
+.muenze {
+
+    background-image: url("/images/muenze.png");
+
+}
+
+/* -----> Punkteanzeige <----- */
+/* ================================================== */
+
+
+#punkteAnzeige {
+
+    position: absolute;
+
+    top: 20px;
+
+    left: 20px;
+
+
+    padding: 10px 20px;
+
+
+    background: rgba(0, 0, 0, 0.6);
+
+
+    color: white;
+
+
+    font-size: 28px;
+
+
+    font-family: Arial;
+
+
+    font-weight: bold;
+
+
+    border-radius: 10px;
+
+
+    z-index: 1000;
+
+}
+
+
+
+/* -----> Münzen <----- */
+/* ================================================== */
+
+
+.muenze {
+
+
+    position: absolute;
+
+
+    width: 30px;
+
+
+    height: 30px;
+
+
+    background: orange;
+
+
+    border-radius: 50%;
+
+
+    z-index: 5;
+
+
+    transform-origin: center;
+
+
+
+    /*
+    Die Münze bekommt einen kleinen Glanzpunkt.
+    */
+
+
+    box-shadow:
+
+        inset 8px 8px 5px rgba(255, 255, 255, 0.5);
+
+
+
+}
+
+
+
+
+
+/*
+Die Münze dreht sich dauerhaft.
+
+Später kann hier einfach
+ein Bild eingesetzt werden.
+*/
+
+
+.muenzeDrehen {
+
+
+    animation:
+
+
+        muenzeDrehen 1s linear infinite,
+
+        muenzeSchweben 1.5s ease-in-out infinite;
+
+
+
+}
+
+
+
+
+
+/*
+Rotation um die Y-Achse.
+
+Dadurch entsteht
+der typische Münz-Effekt.
+*/
+
+
+@keyframes muenzeDrehen {
+
+
+    0% {
+
+
+        transform:
+
+            rotateY(0deg);
+
+
+
+    }
+
+
+    100% {
+
+
+        transform:
+
+            rotateY(360deg);
+
+
+
+    }
+
+
+}
+
+
+
+
+
+/*
+Leichtes Schweben.
+
+Die Münze bewegt sich
+ein paar Pixel hoch und runter.
+*/
+
+
+@keyframes muenzeSchweben {
+
+
+    0% {
+
+
+        margin-top: 0px;
+
+
+
+    }
+
+
+    50% {
+
+
+        margin-top: -8px;
+
+
+
+    }
+
+
+    100% {
+
+
+        margin-top: 0px;
+
+
+
+    }
+
+
+}
+
+
+
+
+
+/*
+Einsammelanimation
+*/
+
+
+.muenzeEingesammelt {
+
+
+    animation:
+
+
+        muenzeSammeln 0.4s forwards;
+
+
+
+}
+
+
+
+
+
+@keyframes muenzeSammeln {
+
+
+    0% {
+
+
+        transform:
+
+            scale(1) rotateY(0deg);
+
+
+
+        opacity: 1;
+
+
+
+    }
+
+
+
+    50% {
+
+
+        transform:
+
+            scale(1.4) rotateY(360deg);
+
+
+
+        opacity: 1;
+
+
+
+    }
+
+
+
+
+    100% {
+
+
+        transform:
+
+            scale(0) rotateY(720deg);
+
+
+
+        opacity: 0;
+
+
+
+    }
+
+
+}
+
+
+
+/*
+Die Klasse wird während des Einsammelns
+kurz aktiviert.
+
+Die Münze:
+- dreht schneller
+- wird kleiner
+- verschwindet
+*/
+
+
+.muenzeEingesammelt {
+
+
+    animation:
+
+        muenzeSammeln 0.4s forwards;
+
+
+}
+
+
+
+/*
+Animation beim Einsammeln
+*/
+
+
+@keyframes muenzeSammeln {
+
+
+    0% {
+
+
+        transform:
+
+            scale(1) rotateY(0deg);
+
+
+        opacity: 1;
+
+
+    }
+
+
+    100% {
+
+
+        transform:
+
+            scale(0) rotateY(720deg);
+
+
+        opacity: 0;
+
+
+    }
+
+}
+
+
+
+/*
+Die normale Drehung der Münzen
+*/
+
+
+@keyframes muenzeDrehen {
+
+
+    0% {
+
+
+        transform:
+
+            rotateY(0deg);
+
+
+    }
+
+
+    100% {
+
+
+        transform:
+
+            rotateY(360deg);
+
+
+    }
+
+
+}
+
+
+
+/*
+Münzen drehen sich dauerhaft.
+*/
+
+
+.muenzeDrehen {
+
+
+    animation:
+
+        muenzeDrehen 1s linear infinite;
+
+
+}
