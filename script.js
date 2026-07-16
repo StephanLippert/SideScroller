@@ -117,6 +117,16 @@ const SPRUNG_KRAFT = -20;
 // Dadurch wird der Spieler nach unten gezogen.
 const SCHWERKRAFT = 1;
 
+// -----> Scrollende Welt und Kamera (NEU) <-----
+// ==================================================
+
+// Die gesamte Breite unserer Spielwelt (entspricht 3 Bildschirmen à 1000 Pixel).
+const WELT_BREITE = 3000;
+
+// Der aktuelle Kamera-Verschiebungs-Wert auf der X-Achse.
+// Bestimmt, wie weit die gesamte Welt nach links geschoben wird.
+let kameraX = 0;
+
 
 // -----> Plattformen <-----
 // ==================================================
@@ -148,54 +158,29 @@ const plattformen = [
 
 ]
 
-// - Plattformen erzeugen -
-
-// Die Plattformen existieren bisher nur als Daten innerhalb des Arrays.
-// Jetzt werden daraus echte HTML-Elemente erzeugt.
+// - Plattformen erzeugen (FÜR KAMERA-UPDATE GEÄNDERT) -
 for (let plattform of plattformen) {
 
-    // - Neues HTML-Element erstellen -
-    //
-    // Ergebnis im HTML:
-    // <div></div>
+    // Neues HTML-Element erstellen.
     const element = document.createElement("div");
 
-
-    // - CSS-Klasse "plattform" hinzufügen -
-    //
-    // Dadurch greifen später die Styles aus der CSS-Datei.
+    // CSS-Klasse "plattform" hinzufügen.
     element.classList.add("plattform");
 
+    // WICHTIG: Wir speichern das HTML-Element direkt im Plattform-Objekt ab!
+    // Dadurch können wir es später in der Spielschleife verschieben.
+    plattform.element = element;
 
-    // - Horizontale Position setzen -
-    //
-    // Beispiel:
-    // left: 100px;
-    element.style.left = plattform.x + "px";
-
-
-    // - Vertikale Position setzen -
-    //
-    // Beispiel:
-    // top: 300px;
+    // Vertikale Position setzen (Y bleibt fest).
     element.style.top = plattform.y + "px";
 
-
-    // - Breite der Plattform setzen -
-    //
-    // Beispiel:
-    // width: 160px;
+    // Breite der Plattform setzen.
     element.style.width = plattform.breite + "px";
 
-
-    // - Höhe der Plattform setzen -
-    //
-    // Beispiel:
-    // height: 20px;
+    // Höhe der Plattform setzen.
     element.style.height = plattform.hoehe + "px";
 
-
-    // - Die fertige Plattform wird dem Spielfeld hinzugefügt -
+    // Die fertige Plattform wird dem Spielfeld hinzugefügt.
     spielfeld.appendChild(element);
 }
 
@@ -378,16 +363,19 @@ function neueMuenzeErzeugen() {
 }
 
 
-// -----> Münzanimation starten <-----
-// ==================================================
+// -----> Münzanimation starten (FÜR KAMERA-UPDATE GEÄNDERT) <-----
+// ===============================================================
 
-// Diese Funktion lässt die Münzen an ihre endgültige Position fahren.
 function animiereMuenzen() {
 
     // Alle Münzen überprüfen.
     for (let muenze of muenzen) {
 
-        // Bereits fertige Animationen überspringen.
+        // WICHTIG: Die X-Position der Münze muss IMMER an die Kamera angepasst werden.
+        // Das sorgt dafür, dass Münzen beim Laufen mitscrollen!
+        muenze.element.style.left = (muenze.x - kameraX) + "px";
+
+        // Bereits fertige Y-Animationen überspringen.
         if (muenze.animationFertig) {
             continue;
         }
@@ -407,7 +395,6 @@ function animiereMuenzen() {
                 // Animation abschließen.
                 muenze.animationFertig = true;
             }
-
         }
 
         // Boden-Münzen kommen aus dem Boden.
@@ -427,11 +414,10 @@ function animiereMuenzen() {
             }
         }
 
-        // Neue Position anwenden.
+        // Neue Y-Position anwenden.
         muenze.element.style.top = muenze.startY + "px";
     }
 }
-
 
 // -----> Münzen überprüfen <-----
 // ==================================================
@@ -648,8 +634,15 @@ function bewegeGegner() {
             aktuellerGegner.richtung = -1;
         }
 
-        // Neue X-Position im Browser anzeigen
-        aktuellerGegner.element.style.left = aktuellerGegner.x + "px";
+        // Bild spiegeln, je nach Richtung
+        if (aktuellerGegner.richtung === "rechts") {
+            aktuellerGegner.element.style.transform = "scaleX(1)";
+        } else {
+            aktuellerGegner.element.style.transform = "scaleX(-1)";
+        }
+
+        // Gegner auf dem Bildschirm positionieren (MIT KAMERA-VERSCHIEBUNG GEÄNDERT)
+        aktuellerGegner.element.style.left = (aktuellerGegner.x - kameraX) + "px";
     }
 }
 
@@ -803,7 +796,18 @@ let tasten = {};
 // Es wird das zuvor definierte Startbild geladen.
 spieler.style.backgroundImage = `url("${BILD_START}")`;
 
+// -----> Spielfeld-Hintergrund für Kamera einrichten (NEU HINZUGEFÜGT) <-----
+// =========================================================================
 
+// Wir färben das Spielfeld mit 3 verschiedenen Blautönen ein.
+// Jeder Farbton ist genau 1000px breit (insgesamt 3000px Weltbreite).
+spielfeld.style.background = "linear-gradient(to right, #24539e 0%, #093371 33.33%, #4c77b4 33.33%, #87aadc 66.66%, #30475e 66.66%, #30475e 100%)";
+
+// Die Hintergrundgröße muss auf die gesamte Weltbreite gestreckt werden.
+spielfeld.style.backgroundSize = WELT_BREITE + "px 100%";
+
+// Verhindern, dass sich der Hintergrund wiederholt.
+spielfeld.style.backgroundRepeat = "no-repeat";
 // Das Bild soll vollständig sichtbar sein.
 //
 // "contain" bedeutet:
@@ -981,6 +985,9 @@ function aktualisiereSpielerBild() {
 // 3. Plattform- und Bodenprüfung
 // 4. Münzen bewegen & einsammeln
 // 5. Bildwechsel & Zeichnen des Spielers
+// -----> Spielschleife mit Kamera-Scrolling (KOMPLETT ERSETZT) <-----
+// ===================================================================
+
 function spielSchleife() {
 
     // Ist das Spiel beendet?
@@ -993,8 +1000,7 @@ function spielSchleife() {
     // -----> Rechts laufen <-----
     // ==================================================
 
-    // Prüfen:
-    // Wird aktuell die rechte Pfeiltaste gehalten?
+    // Prüfen: Wird aktuell die rechte Pfeiltaste gehalten?
     if (tasten["ArrowRight"]) {
 
         // Spieler nach rechts bewegen.
@@ -1008,8 +1014,7 @@ function spielSchleife() {
     // -----> Links laufen <-----
     // ==================================================
 
-    // Prüfen:
-    // Wird aktuell die linke Pfeiltaste gehalten?
+    // Prüfen: Wird aktuell die linke Pfeiltaste gehalten?
     if (tasten["ArrowLeft"]) {
 
         // Spieler nach links bewegen.
@@ -1020,21 +1025,21 @@ function spielSchleife() {
     }
 
 
-    // -----> Linke Grenze <-----
+    // -----> Linke Grenze der WELT <-----
     // ==================================================
 
-    // Verhindern, dass der Spieler aus dem Spielfeld läuft.
+    // Verhindern, dass der Spieler links aus der kompletten 3000px-Welt läuft.
     if (x < 0) {
         x = 0;
     }
 
 
-    // -----> Rechte Grenze <-----
+    // -----> Rechte Grenze der WELT (KORRIGIERT) <-----
     // ==================================================
 
-    // Prüfen: Ist der Spieler weiter rechts als das Spielfeld erlaubt?
-    if (x > SPIELFELD_BREITE - SPIELER_BREITE) {
-        x = SPIELFELD_BREITE - SPIELER_BREITE;
+    // WICHTIG: Die Grenze ist jetzt die WELT_BREITE (3000px) statt der Spielfeldbreite!
+    if (x > WELT_BREITE - SPIELER_BREITE) {
+        x = WELT_BREITE - SPIELER_BREITE;
     }
 
 
@@ -1049,18 +1054,47 @@ function spielSchleife() {
 
 
     // ==================================================
-    // -----> GEGNER-LOGIK (VOR DER BODENPRÜFUNG) <-----
+    // -----> DIE KAMERA-BERECHNUNG (NEU) <-----
     // ==================================================
 
-    // 1. Zuerst bewegen wir alle Gegner auf ihren Plattformen oder dem Boden.
+    // Die Kamera versucht immer, genau mittig über dem Spieler zu sein.
+    // Formel: Spieler-X minus halbe Bildschirmbreite (500px) minus halbe Spielerbreite.
+    kameraX = x - (SPIELFELD_BREITE / 2) - (SPIELER_BREITE / 2);
+
+    // Begrenzung links: Die Kamera darf nicht weiter nach links als zum Start (0).
+    if (kameraX < 0) {
+        kameraX = 0;
+    }
+
+    // Begrenzung rechts: Die Kamera darf nicht über das Ende der 3000px-Welt hinausschauen.
+    if (kameraX > WELT_BREITE - SPIELFELD_BREITE) {
+        kameraX = WELT_BREITE - SPIELFELD_BREITE;
+    }
+
+    // -----> Hintergrund mitbewegen <-----
+    // Wir verschieben das Hintergrundbild genau entgegengesetzt zur Kamera.
+    // Das erzeugt den perfekten Scrolling-Effekt der 3 Blautöne!
+    spielfeld.style.backgroundPositionX = -kameraX + "px";
+
+
+    // ==================================================
+    // -----> GEGNER- UND MÜNZ-LOGIK <-----
+    // ==================================================
+
+    // Gegner bewegen.
     bewegeGegner();
 
-    // 2. Jetzt prüfen wir direkt, ob wir auf einen Gegner springen.
-    // Das muss passieren, BEVOR die Bodenprüfung die Geschwindigkeit auf 0 setzt!
+    // Gegner-Kollision prüfen (VOR der Bodenprüfung für den Bounce!).
     pruefeGegner();
 
-    // 3. Prüfen, ob alle Münzen eingesammelt wurden, um neue zu erstellen.
+    // Münzen-Nachschub prüfen.
     pruefeAlleMuenzen();
+
+    // Münzen animieren (bewegt sie auch relativ zur Kamera).
+    animiereMuenzen();
+
+    // Münzen einsammeln prüfen.
+    pruefeMuenzen();
 
 
     // ==================================================
@@ -1070,134 +1104,96 @@ function spielSchleife() {
     // Zu Beginn gehen wir davon aus, dass der Spieler auf keiner Plattform steht.
     let aufPlattform = false;
 
-    // Position der Spielerkanten berechnen.
+    // Positionen berechnen.
     const spielerUnterkante = y + SPIELER_HOEHE;
     const spielerOberkante = y;
     const spielerLinks = x;
     const spielerRechts = x + SPIELER_BREITE;
 
-    // Jede Plattform einzeln untersuchen.
+    // Plattformen prüfen.
     for (let plattform of plattformen) {
-
-        // Prüfen, ob der Spieler auf einer Plattform landet.
         const beruehrtPlattformVonOben =
             spielerRechts > plattform.x &&
             spielerLinks < plattform.x + plattform.breite &&
             spielerUnterkante >= plattform.y &&
             spielerOberkante < plattform.y &&
-            geschwindigkeitY > 0; // Der Spieler muss sich nach unten bewegen
+            geschwindigkeitY > 0;
 
-        // Landung auf einer Plattform erfolgreich?
         if (beruehrtPlattformVonOben) {
-
-            // Spieler exakt auf die Plattform setzen.
             y = plattform.y - SPIELER_HOEHE;
-
-            // Vertikale Fallbewegung stoppen.
             geschwindigkeitY = 0;
-
-            // Spieler steht wieder sicher.
             istAmBoden = true;
-
-            // Plattform-Status merken.
             aufPlattform = true;
-
-            // Keine weiteren Plattformen mehr prüfen.
             break;
         }
     }
 
-    // Falls keine Plattform getroffen wurde und der Spieler den echten Boden erreicht.
+    // Bodenprüfung.
     if (!aufPlattform && y >= BODEN_Y) {
-
-        // Spieler auf die Bodenhöhe setzen.
         y = BODEN_Y;
-
-        // Fallbewegung stoppen.
         geschwindigkeitY = 0;
-
-        // Spieler steht wieder auf dem Boden.
         istAmBoden = true;
     }
 
-    // Wenn der Spieler weder auf einer Plattform noch auf dem Boden steht.
+    // Wenn keine Plattform getroffen wurde und der Spieler noch über dem Boden ist.
     if (!aufPlattform && y < BODEN_Y) {
-
-        // Spieler befindet sich in der Luft (er springt oder fällt).
         istAmBoden = false;
     }
 
 
     // ==================================================
-    // -----> MÜNZEN AKTUALISIEREN <-----
+    // -----> PLATTFORMEN RELATIV ZUR KAMERA ZEICHNEN <--
     // ==================================================
 
-    // Münzen an ihre Position gleiten lassen.
-    animiereMuenzen();
-
-    // Prüfen, ob der Spieler gerade eine Münze berührt und einsammelt.
-    pruefeMuenzen();
+    // Jede Plattform muss nun relativ zur Kamera verschoben gezeichnet werden!
+    for (let plattform of plattformen) {
+        plattform.element.style.left = (plattform.x - kameraX) + "px";
+    }
 
 
     // ==================================================
-    // -----> INTERNE FUNKTIONEN DER SPIELSCHLEIFE <-----
+    // -----> INTERNE FUNKTIONEN <-----
     // ==================================================
 
-    // Diese Funktion prüft, ob der Spieler einen Gegner berührt.
-    // Trifft er ihn von oben, wird der Gegner besiegt und der Spieler springt ab.
+    // Prüft, ob der Spieler auf einen Gegner springt.
     function pruefeGegner() {
-
         const spielerLinks = x;
         const spielerRechts = x + SPIELER_BREITE;
         const spielerOben = y;
         const spielerUnten = y + SPIELER_HOEHE;
 
-        // Wir laufen rückwärts durch das Gegner-Array, damit das Löschen fehlerfrei klappt.
         for (let i = gegner.length - 1; i >= 0; i--) {
-
             const aktuellerGegner = gegner[i];
 
             const gegnerLinks = aktuellerGegner.x;
-            const gegnerRechts = aktuellerGegner.x + 60; // Gegnerbreite ist 60px
+            const gegnerRechts = aktuellerGegner.x + 60;
             const gegnerOben = aktuellerGegner.y;
-            const gegnerUnten = aktuellerGegner.y + 60;  // Gegnerhöhe ist 60px
+            const gegnerUnten = aktuellerGegner.y + 60;
 
-            // Prüfen, ob sich die Boxen von Spieler und Gegner überschneiden.
             const beruehrung =
                 spielerRechts > gegnerLinks &&
                 spielerLinks < gegnerRechts &&
                 spielerUnten > gegnerOben &&
                 spielerOben < gegnerUnten;
 
-            // WURDE DER GEGNER BESIEGT?
-            // Bedingung: Berührung liegt vor UND der Spieler bewegt sich nach unten (fällt)
-            // UND die Füße des Spielers sind über der Oberkante des Gegners.
             if (
                 beruehrung &&
                 geschwindigkeitY > 0 &&
                 spielerUnten < gegnerOben + 25
             ) {
-                // HTML-Element des Gegners aus der Webseite löschen.
+                // Gegner entfernen.
                 aktuellerGegner.element.remove();
-
-                // Gegner aus unserer Daten-Liste entfernen.
                 gegner.splice(i, 1);
 
-                // -----> DER BOUNCE-EFFEKT <-----
-                // Wir katapultieren den Spieler sofort wieder nach oben!
-                // Dazu nutzen wir unsere Sprungkraft-Konstante.
+                // Der Bounce-Effekt!
                 geschwindigkeitY = SPRUNG_KRAFT;
-
-                // Da der Spieler nach oben geschleudert wird, ist er nicht mehr am Boden.
                 istAmBoden = false;
 
-                // Bonussekunde für den Timer gutschreiben.
+                // Belohnung.
                 spielZeit++;
-
-                // Anzeige im HTML aktualisieren.
                 aktualisiereZeitAnzeige();
 
-                // Nach einer Verzögerung einen neuen Gegner erstellen.
+                // Respawn.
                 setTimeout(() => {
                     neuenGegnerErzeugen();
                 }, GEGNER_RESPAWN);
@@ -1205,21 +1201,11 @@ function spielSchleife() {
         }
     }
 
-    // Prüft, ob alle Münzen eingesammelt wurden.
-    // Wenn ja, werden direkt vier neue Münzen auf der Karte verteilt.
+    // Spawnt neue Münzen, wenn alle weggeschnappt wurden.
     function pruefeAlleMuenzen() {
-
-        // Gibt es noch mindestens eine nicht eingesammelte Münze?
-        const nochVorhanden =
-            muenzen.some(muenze => !muenze.eingesammelt);
-
-        // Wenn keine Münzen mehr auf der Karte sind:
+        const nochVorhanden = muenzen.some(muenze => !muenze.eingesammelt);
         if (!nochVorhanden) {
-
-            // Das alte, leere Array komplett leeren.
             muenzen.length = 0;
-
-            // Vier neue Münzen per Zufall erzeugen.
             for (let i = 0; i < 4; i++) {
                 neueMuenzeErzeugen();
             }
@@ -1231,14 +1217,14 @@ function spielSchleife() {
     // -----> ZEICHNEN & NÄCHSTER FRAME <-----
     // ==================================================
 
-    // Das passende Aussehen (Stehen, Laufen, Springen) für den Spieler wählen.
+    // Aussehen des Spielers aktualisieren.
     aktualisiereSpielerBild();
 
-    // Neue X- und Y-Position an das HTML-Element des Spielers übergeben.
-    spieler.style.left = x + "px";
+    // WICHTIG: Auch der Spieler wird jetzt relativ zur Kamera gezeichnet!
+    spieler.style.left = (x - kameraX) + "px";
     spieler.style.top = y + "px";
 
-    // Dem Browser sagen, dass diese Funktion sofort wieder aufgerufen werden soll.
+    // Spielschleife erneut triggern.
     requestAnimationFrame(spielSchleife);
 }
 
