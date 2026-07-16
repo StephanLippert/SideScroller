@@ -515,10 +515,13 @@ function pruefeMuenzen() {
 // -----> Gegner <-----
 // ==================================================
 
+// Alle Gegner werden hier gespeichert.
 const gegner = [];
+
+// Maximale Anzahl.
 const MAX_GEGNER = 6;
-const GEGNER_BREITE = 60;
-const GEGNER_HOEHE = 60;
+
+// Nach 5 Sekunden erscheint ein neuer Gegner.
 const GEGNER_RESPAWN = 5000;
 
 // -----> Gegner erzeugen <-----
@@ -526,35 +529,46 @@ const GEGNER_RESPAWN = 5000;
 
 function neuenGegnerErzeugen() {
 
-    // Bereits genug Gegner vorhanden?
+    // Sind bereits genug Gegner vorhanden?
     if (gegner.length >= MAX_GEGNER) {
+
         return;
     }
 
-    const gegnerObjekt = {
+    // Zufällige Position.
 
-        x: Math.random() * (SPIELFELD_BREITE - GEGNER_BREITE),
+    const zufallX =
+        Math.floor(
+            Math.random() *
+            (SPIELFELD_BREITE - 60)
+        );
+
+    const neuerGegner = {
+
+        x: zufallX,
 
         y: BODEN_Y,
 
         erledigt: false
+
     };
 
-    const element = document.createElement("div");
+    const element =
+        document.createElement("div");
 
     element.classList.add("gegner");
 
     element.style.left =
-        gegnerObjekt.x + "px";
+        neuerGegner.x + "px";
 
     element.style.top =
-        gegnerObjekt.y + "px";
+        neuerGegner.y + "px";
 
-    gegnerObjekt.element = element;
+    neuerGegner.element = element;
 
     spielfeld.appendChild(element);
 
-    gegner.push(gegnerObjekt);
+    gegner.push(neuerGegner);
 }
 
 // -----> Gegner überprüfen <-----
@@ -1128,6 +1142,56 @@ function spielSchleife() {
     // ob Münzen eingesammelt wurden.
 
     pruefeMuenzen();
+
+    // -----> Gegner überprüfen <-----
+    // ==================================================
+
+    function pruefeGegner() {
+
+        const spielerLinks = x;
+        const spielerRechts = x + SPIELER_BREITE;
+
+        const spielerOben = y;
+        const spielerUnten = y + SPIELER_HOEHE;
+
+        for (let i = gegner.length - 1; i >= 0; i--) {
+
+            const aktuellerGegner =
+                gegner[i];
+
+            const gegnerLinks =
+                aktuellerGegner.x;
+
+            const gegnerRechts =
+                aktuellerGegner.x + 60;
+
+            const gegnerOben =
+                aktuellerGegner.y;
+
+            const gegnerUnten =
+                aktuellerGegner.y + 60;
+
+            const beruehrung =
+                spielerRechts > gegnerLinks &&
+                spielerLinks < gegnerRechts &&
+                spielerUnten > gegnerOben &&
+                spielerOben < gegnerUnten;
+            if (
+                beruehrung &&
+                geschwindigkeitY > 0 &&
+                spielerUnten < gegnerOben + 25
+            ) {
+                aktuellerGegner.element.remove();
+                gegner.splice(i, 1);
+                spielZeit++;
+                aktualisiereZeitAnzeige();
+                setTimeout(() => {
+                    neuenGegnerErzeugen();
+                }, GEGNER_RESPAWN);
+            }
+        }
+    }
+
     pruefeGegner();
     pruefeAlleMuenzen();
 
@@ -1227,7 +1291,6 @@ const timer = setInterval(() => {
 
 // Schreibt die verbleibende Zeit in das HTML.
 function aktualisiereZeitAnzeige() {
-
     zeitAnzeige.textContent =
         "Zeit: " + spielZeit;
 }
@@ -1236,7 +1299,6 @@ function aktualisiereZeitAnzeige() {
 // ==================================================
 
 for (let i = 0; i < MAX_GEGNER; i++) {
-
     neuenGegnerErzeugen();
 }
 
