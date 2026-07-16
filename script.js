@@ -527,98 +527,133 @@ const GEGNER_RESPAWN = 5000;
 // -----> Gegner erzeugen <-----
 // ==================================================
 
+// Konstanten für die Gegner hinzufügen (falls noch nicht vorhanden)
+const GEGNER_BREITE = 60;
+const GEGNER_HOEHE = 60;
+const GEGNER_GESCHWINDIGKEIT = 2; // Bestimmt, wie schnell die Gegner laufen
+
 function neuenGegnerErzeugen() {
 
     // Sind bereits genug Gegner vorhanden?
     if (gegner.length >= MAX_GEGNER) {
-
         return;
     }
 
-    // Zufällige Position.
+    // Zufällig entscheiden:
+    // Boden oder Plattform?
+    const typ = Math.random() < 0.5 ? "boden" : "plattform";
 
-    const zufallX =
-        Math.floor(
-            Math.random() *
-            (SPIELFELD_BREITE - 60)
-        );
+    let startY;
+    let minX;
+    let maxX;
 
+    // - Gegner startet auf dem Boden -
+    if (typ === "boden") {
+        startY = BODEN_Y;
+
+        // Darf sich auf dem kompletten Spielfeld bewegen
+        minX = 0;
+        maxX = SPIELFELD_BREITE - GEGNER_BREITE;
+    }
+    // - Gegner startet auf einer Plattform -
+    else {
+        // Zufällige Plattform auswählen
+        const plattform = plattformen[Math.floor(Math.random() * plattformen.length)];
+
+        // Y-Position anpassen, damit der Gegner auf der Plattform steht
+        startY = plattform.y - GEGNER_HOEHE;
+
+        // Laufgrenzen festlegen (damit er nicht in die Luft läuft)
+        minX = plattform.x;
+        maxX = plattform.x + plattform.breite - GEGNER_BREITE;
+    }
+
+    // Zufällige Start-X-Position innerhalb seiner erlaubten Grenzen
+    const zufallX = Math.floor(Math.random() * (maxX - minX + 1)) + minX;
+
+    // Zufällige Startrichtung
+    // Math.random() < 0.5 erzeugt eine 50/50 Chance
+    // 1 = rechts, -1 = links
+    const startRichtung = Math.random() < 0.5 ? 1 : -1;
+
+    // Das neue Gegner-Objekt mit allen wichtigen Daten
     const neuerGegner = {
-
         x: zufallX,
-
-        y: BODEN_Y,
-
+        y: startY,
+        minX: minX,          // Wie weit darf er nach links?
+        maxX: maxX,          // Wie weit darf er nach rechts?
+        richtung: startRichtung, // Aktuelle Laufrichtung
         erledigt: false
-
     };
 
-    const element =
-        document.createElement("div");
-
+    // HTML-Element erstellen
+    const element = document.createElement("div");
     element.classList.add("gegner");
-
-    element.style.left =
-        neuerGegner.x + "px";
-
-    element.style.top =
-        neuerGegner.y + "px";
+    element.style.left = neuerGegner.x + "px";
+    element.style.top = neuerGegner.y + "px";
 
     neuerGegner.element = element;
 
+    // Ins Spielfeld einfügen
     spielfeld.appendChild(element);
 
+    // In unsere Liste aufnehmen
     gegner.push(neuerGegner);
 }
 
-// -----> Gegner überprüfen <-----
+// -----> Gegner bewegen <-----
 // ==================================================
 
-function pruefeGegner() {
+// Diese Funktion lässt alle existierenden Gegner laufen.
+function bewegeGegner() {
 
-    const spielerLinks = x;
-    const spielerRechts = x + SPIELER_BREITE;
+    for (let aktuellerGegner of gegner) {
 
-    const spielerOben = y;
-    const spielerUnten = y + SPIELER_HOEHE;
-
-    for (let i = gegner.length - 1; i >= 0; i--) {
-
-        const g = gegner[i];
-
-        const gegnerLinks = g.x;
-        const gegnerRechts = g.x + GEGNER_BREITE;
-
-        const gegnerOben = g.y;
-        const gegnerUnten = g.y + GEGNER_HOEHE;
-
-        const beruehrung =
-
-            spielerRechts > gegnerLinks &&
-            spielerLinks < gegnerRechts &&
-            spielerUnten > gegnerOben &&
-            spielerOben < gegnerUnten;
-
-        if (beruehrung &&
-            geschwindigkeitY > 0 &&
-            spielerUnten < gegnerOben + 30) {
-
-            g.element.remove();
-
-            gegner.splice(i, 1);
-
-            spielZeit++;
-
-            aktualisiereZeitAnzeige();
-
-            setTimeout(() => {
-
-                neuenGegnerErzeugen();
-
-            }, GEGNER_RESPAWN);
+        // - Willkürlicher Richtungswechsel -
+        // 
+        // In jedem Frame besteht eine winzige Chance (ca. 1%), 
+        // dass der Gegner plötzlich einfach umdreht.
+        if (Math.random() < 0.01) {
+            aktuellerGegner.richtung *= -1;
         }
+
+        // - Gegner bewegen -
+        //
+        // Richtung (1 oder -1) * Geschwindigkeit (z.B. 2)
+        // Dadurch geht es entweder +2 (rechts) oder -2 (links)
+        aktuellerGegner.x += aktuellerGegner.richtung * GEGNER_GESCHWINDIGKEIT;
+
+
+        // - Linke Grenze prüfen -
+        //
+        // Ist der Gegner zu weit nach links gelaufen?
+        if (aktuellerGegner.x <= aktuellerGegner.minX) {
+
+            // Exakt an den Rand setzen
+            aktuellerGegner.x = aktuellerGegner.minX;
+
+            // Zwingend nach rechts umdrehen
+            aktuellerGegner.richtung = 1;
+        }
+
+        // - Rechte Grenze prüfen -
+        //
+        // Ist der Gegner zu weit nach rechts gelaufen?
+        if (aktuellerGegner.x >= aktuellerGegner.maxX) {
+
+            // Exakt an den Rand setzen
+            aktuellerGegner.x = aktuellerGegner.maxX;
+
+            // Zwingend nach links umdrehen
+            aktuellerGegner.richtung = -1;
+        }
+
+        // Neue X-Position im Browser anzeigen
+        aktuellerGegner.element.style.left = aktuellerGegner.x + "px";
     }
 }
+
+
 // -----> Spielerposition <-----
 // ==================================================
 
@@ -934,26 +969,26 @@ function aktualisiereSpielerBild() {
 };
 
 
-// -----> Spielschleife <-----
+// -----> Spielschleife (NEU & SORTIERT) <-----
 // ==================================================
 
 // Diese Funktion ist das Herzstück des Spiels.
 // Sie wird immer wieder aufgerufen (ca. 60-mal pro Sekunde).
 //
-// Hier passieren:
-// - Bewegung
-// - Springen
-// - Schwerkraft
-// - Plattform-Kollisionen
-// - Bildwechsel
-// - Zeichnen des Spielers
+// Hier passieren nun in der richtigen Reihenfolge:
+// 1. Bewegung nach links/rechts
+// 2. Gegner bewegen & Kollision prüfen (wichtig für den Sprung-Bounce!)
+// 3. Plattform- und Bodenprüfung
+// 4. Münzen bewegen & einsammeln
+// 5. Bildwechsel & Zeichnen des Spielers
 function spielSchleife() {
 
     // Ist das Spiel beendet?
-    // Dann keine weitere Bewegung mehr.
+    // Dann keine weitere Bewegung mehr erlauben.
     if (spielBeendet) {
         return;
     }
+
 
     // -----> Rechts laufen <-----
     // ==================================================
@@ -963,18 +998,12 @@ function spielSchleife() {
     if (tasten["ArrowRight"]) {
 
         // Spieler nach rechts bewegen.
-        //
-        // Beispiel:
-        // start bei x = 100
-        //
-        // Nach einem Frame:
-        // x = 105
         x += LAUF_GESCHWINDIGKEIT;
 
-        // Merken, dass der Spieler nach rechts schaut.
-        // Diese Information wird später für das richtige Bild benötigt.
+        // Blickrichtung für das Bild speichern.
         blickrichtung = "rechts";
     }
+
 
     // -----> Links laufen <-----
     // ==================================================
@@ -990,123 +1019,95 @@ function spielSchleife() {
         blickrichtung = "links";
     }
 
+
     // -----> Linke Grenze <-----
     // ==================================================
 
-    // Verhindern, dass der Spieler
-    // aus dem Spielfeld herausläuft.
+    // Verhindern, dass der Spieler aus dem Spielfeld läuft.
     if (x < 0) {
-
-        // Spieler exakt an den linken Rand setzen.
         x = 0;
     }
+
 
     // -----> Rechte Grenze <-----
     // ==================================================
 
-    // Prüfen:
-    // Ist der Spieler weiter rechts als erlaubt?
+    // Prüfen: Ist der Spieler weiter rechts als das Spielfeld erlaubt?
     if (x > SPIELFELD_BREITE - SPIELER_BREITE) {
-
-        // Spieler an den rechten Rand setzen.
         x = SPIELFELD_BREITE - SPIELER_BREITE;
     }
 
-    // -----> Schwerkraft <-----
+
+    // -----> Schwerkraft anwenden <-----
     // ==================================================
 
-    // Die Schwerkraft wirkt in jedem Frame.
-    // Dadurch wird die Fallgeschwindigkeit immer größer.
+    // Die Schwerkraft zieht den Spieler in jedem Frame weiter nach unten.
     geschwindigkeitY += SCHWERKRAFT;
 
-    // Die aktuelle Geschwindigkeit auf die Y-Position anwenden.
-    //
-    // Negative Geschwindigkeit:
-    // → nach oben
-    //
-    // Positive Geschwindigkeit:
-    // → nach unten
+    // Die berechnete Geschwindigkeit auf die Y-Position anwenden.
     y += geschwindigkeitY;
 
-    // -----> Plattformstatus <-----
+
+    // ==================================================
+    // -----> GEGNER-LOGIK (VOR DER BODENPRÜFUNG) <-----
+    // ==================================================
+
+    // 1. Zuerst bewegen wir alle Gegner auf ihren Plattformen oder dem Boden.
+    bewegeGegner();
+
+    // 2. Jetzt prüfen wir direkt, ob wir auf einen Gegner springen.
+    // Das muss passieren, BEVOR die Bodenprüfung die Geschwindigkeit auf 0 setzt!
+    pruefeGegner();
+
+    // 3. Prüfen, ob alle Münzen eingesammelt wurden, um neue zu erstellen.
+    pruefeAlleMuenzen();
+
+
+    // ==================================================
+    // -----> PLATFORM- UND BODENPRÜFUNG <-----
     // ==================================================
 
     // Zu Beginn gehen wir davon aus, dass der Spieler auf keiner Plattform steht.
     let aufPlattform = false;
 
-    // -----> Position der Spielerkanten berechnen <-----
-    // ==================================================
-
-    // Unterkante des Spielers.
-    //
-    // Beispiel:
-    // y = 300
-    // Höhe = 80
-    //
-    // Unterkante = 380
+    // Position der Spielerkanten berechnen.
     const spielerUnterkante = y + SPIELER_HOEHE;
-
-    // Oberkante des Spielers.
     const spielerOberkante = y;
-
-    // Linke Seite des Spielers.
     const spielerLinks = x;
-
-    // Rechte Seite des Spielers.
     const spielerRechts = x + SPIELER_BREITE;
-
-    // -----> Plattformen prüfen <-----
-    // ==================================================
 
     // Jede Plattform einzeln untersuchen.
     for (let plattform of plattformen) {
 
         // Prüfen, ob der Spieler auf einer Plattform landet.
         const beruehrtPlattformVonOben =
-
-            // Spieler überlappt die Plattform auf der X-Achse.
             spielerRechts > plattform.x &&
-
-            // Spieler überlappt die Plattform weiterhin auf der X-Achse.
             spielerLinks < plattform.x + plattform.breite &&
-
-            // Die Füße des Spielers haben die Plattform erreicht.
             spielerUnterkante >= plattform.y &&
-
-            // Der Spieler befindet sich noch oberhalb der Plattform.
-            // Dadurch werden Treffer von unten verhindert.
             spielerOberkante < plattform.y &&
+            geschwindigkeitY > 0; // Der Spieler muss sich nach unten bewegen
 
-            // Der Spieler muss fallen.
-            // Positive Werte bedeuten Bewegung nach unten.
-            geschwindigkeitY > 0;
-
-        // Wurde eine Landung erkannt?
+        // Landung auf einer Plattform erfolgreich?
         if (beruehrtPlattformVonOben) {
 
             // Spieler exakt auf die Plattform setzen.
-            // Die Füße des Spielers landen dadurch sauber auf der Oberkante.
             y = plattform.y - SPIELER_HOEHE;
 
-            // Vertikale Bewegung stoppen.
+            // Vertikale Fallbewegung stoppen.
             geschwindigkeitY = 0;
 
-            // Spieler steht wieder.
+            // Spieler steht wieder sicher.
             istAmBoden = true;
 
-            // Merken:
-            // Der Spieler befindet sich auf einer Plattform.
+            // Plattform-Status merken.
             aufPlattform = true;
 
-            // Weitere Plattformen müssen nicht mehr geprüft werden.
+            // Keine weiteren Plattformen mehr prüfen.
             break;
         }
     }
 
-    // -----> Bodenprüfung <-----
-    // ==================================================
-
-    // Falls keine Plattform getroffen wurde und der Spieler den Boden erreicht hat.
+    // Falls keine Plattform getroffen wurde und der Spieler den echten Boden erreicht.
     if (!aufPlattform && y >= BODEN_Y) {
 
         // Spieler auf die Bodenhöhe setzen.
@@ -1115,76 +1116,88 @@ function spielSchleife() {
         // Fallbewegung stoppen.
         geschwindigkeitY = 0;
 
-        // Spieler steht wieder.
+        // Spieler steht wieder auf dem Boden.
         istAmBoden = true;
     }
 
-    // -----> Spieler befindet sich in der Luft <-----
-    // ==================================================
-
-    // Wenn keine Plattform getroffen wurde und der Spieler noch oberhalb des Bodens ist.
+    // Wenn der Spieler weder auf einer Plattform noch auf dem Boden steht.
     if (!aufPlattform && y < BODEN_Y) {
 
-        // Spieler springt oder fällt gerade.
+        // Spieler befindet sich in der Luft (er springt oder fällt).
         istAmBoden = false;
     }
 
-    // -----> Münzen aktualisieren <-----
+
+    // ==================================================
+    // -----> MÜNZEN AKTUALISIEREN <-----
     // ==================================================
 
-
-    // Münzen bewegen.
-
+    // Münzen an ihre Position gleiten lassen.
     animiereMuenzen();
 
-
-    // Prüfen,
-    // ob Münzen eingesammelt wurden.
-
+    // Prüfen, ob der Spieler gerade eine Münze berührt und einsammelt.
     pruefeMuenzen();
 
-    // -----> Gegner überprüfen <-----
+
+    // ==================================================
+    // -----> INTERNE FUNKTIONEN DER SPIELSCHLEIFE <-----
     // ==================================================
 
+    // Diese Funktion prüft, ob der Spieler einen Gegner berührt.
+    // Trifft er ihn von oben, wird der Gegner besiegt und der Spieler springt ab.
     function pruefeGegner() {
 
         const spielerLinks = x;
         const spielerRechts = x + SPIELER_BREITE;
-
         const spielerOben = y;
         const spielerUnten = y + SPIELER_HOEHE;
 
+        // Wir laufen rückwärts durch das Gegner-Array, damit das Löschen fehlerfrei klappt.
         for (let i = gegner.length - 1; i >= 0; i--) {
 
-            const aktuellerGegner =
-                gegner[i];
+            const aktuellerGegner = gegner[i];
 
-            const gegnerLinks =
-                aktuellerGegner.x;
+            const gegnerLinks = aktuellerGegner.x;
+            const gegnerRechts = aktuellerGegner.x + 60; // Gegnerbreite ist 60px
+            const gegnerOben = aktuellerGegner.y;
+            const gegnerUnten = aktuellerGegner.y + 60;  // Gegnerhöhe ist 60px
 
-            const gegnerRechts =
-                aktuellerGegner.x + 60;
-
-            const gegnerOben =
-                aktuellerGegner.y;
-
-            const gegnerUnten =
-                aktuellerGegner.y + 60;
-
+            // Prüfen, ob sich die Boxen von Spieler und Gegner überschneiden.
             const beruehrung =
                 spielerRechts > gegnerLinks &&
                 spielerLinks < gegnerRechts &&
                 spielerUnten > gegnerOben &&
                 spielerOben < gegnerUnten;
+
+            // WURDE DER GEGNER BESIEGT?
+            // Bedingung: Berührung liegt vor UND der Spieler bewegt sich nach unten (fällt)
+            // UND die Füße des Spielers sind über der Oberkante des Gegners.
             if (
                 beruehrung &&
                 geschwindigkeitY > 0 &&
                 spielerUnten < gegnerOben + 25
             ) {
+                // HTML-Element des Gegners aus der Webseite löschen.
                 aktuellerGegner.element.remove();
+
+                // Gegner aus unserer Daten-Liste entfernen.
                 gegner.splice(i, 1);
+
+                // -----> DER BOUNCE-EFFEKT <-----
+                // Wir katapultieren den Spieler sofort wieder nach oben!
+                // Dazu nutzen wir unsere Sprungkraft-Konstante.
+                geschwindigkeitY = SPRUNG_KRAFT;
+
+                // Da der Spieler nach oben geschleudert wird, ist er nicht mehr am Boden.
+                istAmBoden = false;
+
+                // Bonussekunde für den Timer gutschreiben.
                 spielZeit++;
+
+                // Anzeige im HTML aktualisieren.
                 aktualisiereZeitAnzeige();
+
+                // Nach einer Verzögerung einen neuen Gegner erstellen.
                 setTimeout(() => {
                     neuenGegnerErzeugen();
                 }, GEGNER_RESPAWN);
@@ -1192,59 +1205,42 @@ function spielSchleife() {
         }
     }
 
-    pruefeGegner();
-    pruefeAlleMuenzen();
-
-    // -----> Prüfen ob alle Münzen eingesammelt wurden <-----
-    // ==================================================
-
+    // Prüft, ob alle Münzen eingesammelt wurden.
+    // Wenn ja, werden direkt vier neue Münzen auf der Karte verteilt.
     function pruefeAlleMuenzen() {
 
-        // Gibt es noch eine Münze,
-        // die nicht eingesammelt wurde?
+        // Gibt es noch mindestens eine nicht eingesammelte Münze?
         const nochVorhanden =
             muenzen.some(muenze => !muenze.eingesammelt);
 
-        // Wenn keine mehr vorhanden ist,
-        // werden vier neue erzeugt.
+        // Wenn keine Münzen mehr auf der Karte sind:
         if (!nochVorhanden) {
 
-            // Altes Array leeren.
+            // Das alte, leere Array komplett leeren.
             muenzen.length = 0;
 
-            // Vier neue Münzen erzeugen.
+            // Vier neue Münzen per Zufall erzeugen.
             for (let i = 0; i < 4; i++) {
-
                 neueMuenzeErzeugen();
             }
         }
     }
 
-    // -----> Passendes Bild auswählen <-----
+
+    // ==================================================
+    // -----> ZEICHNEN & NÄCHSTER FRAME <-----
     // ==================================================
 
-    // Entscheidet:
-    // - springen
-    // - laufen
-    // - stehen
+    // Das passende Aussehen (Stehen, Laufen, Springen) für den Spieler wählen.
     aktualisiereSpielerBild();
 
-    // -----> Spieler zeichnen <-----
-    // ==================================================
-
-    // Neue X-Position im Browser anzeigen.
+    // Neue X- und Y-Position an das HTML-Element des Spielers übergeben.
     spieler.style.left = x + "px";
-
-    // Neue Y-Position im Browser anzeigen.
     spieler.style.top = y + "px";
 
-    // -----> Nächsten Frame starten <-----
-    // ==================================================
-
-    // Browser auffordern, die Spielschleife erneut aufzurufen.
-    // Dadurch läuft das Spiel permanent weiter.
+    // Dem Browser sagen, dass diese Funktion sofort wieder aufgerufen werden soll.
     requestAnimationFrame(spielSchleife);
-};
+}
 
 aktualisierePunkteAnzeige();
 
