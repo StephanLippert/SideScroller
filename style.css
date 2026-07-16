@@ -13,19 +13,15 @@ body {
     height: 600px;
     background-color: rgb(152, 199, 240);
     border: 3px solid black;
-
     position: relative;
-
     overflow: hidden;
 }
 
 #boden {
     position: absolute;
     bottom: 0;
-
     width: 100%;
     height: 15px;
-
     background-color: green;
 }
 
@@ -37,9 +33,20 @@ body {
 #spieler {
     width: 50px;
     height: 50px;
-    background-color: trancparent;
+    background-color: transparent;
 
     position: absolute;
+}
+
+.gegner {
+
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background-image: url("/images/Gegner.png");
+    background-color: red;
+    background-size: contain;
+    background-repeat: no-repeat;
 }
 
 /* Münze */

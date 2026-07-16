@@ -202,7 +202,6 @@ for (let plattform of plattformen) {
 // -----> Münzen <-----
 // ==================================================
 
-
 // Jede Münze besitzt:
 //
 // x
@@ -310,7 +309,6 @@ for (let muenze of muenzen) {
 
     // Münze ins Spielfeld einfügen.
     spielfeld.appendChild(element);
-
 }
 
 // -----> Neue Münze erzeugen <-----
@@ -514,7 +512,99 @@ function pruefeMuenzen() {
     }
 }
 
+// -----> Gegner <-----
+// ==================================================
 
+const gegner = [];
+const MAX_GEGNER = 6;
+const GEGNER_BREITE = 60;
+const GEGNER_HOEHE = 60;
+const GEGNER_RESPAWN = 5000;
+
+// -----> Gegner erzeugen <-----
+// ==================================================
+
+function neuenGegnerErzeugen() {
+
+    // Bereits genug Gegner vorhanden?
+    if (gegner.length >= MAX_GEGNER) {
+        return;
+    }
+
+    const gegnerObjekt = {
+
+        x: Math.random() * (SPIELFELD_BREITE - GEGNER_BREITE),
+
+        y: BODEN_Y,
+
+        erledigt: false
+    };
+
+    const element = document.createElement("div");
+
+    element.classList.add("gegner");
+
+    element.style.left =
+        gegnerObjekt.x + "px";
+
+    element.style.top =
+        gegnerObjekt.y + "px";
+
+    gegnerObjekt.element = element;
+
+    spielfeld.appendChild(element);
+
+    gegner.push(gegnerObjekt);
+}
+
+// -----> Gegner überprüfen <-----
+// ==================================================
+
+function pruefeGegner() {
+
+    const spielerLinks = x;
+    const spielerRechts = x + SPIELER_BREITE;
+
+    const spielerOben = y;
+    const spielerUnten = y + SPIELER_HOEHE;
+
+    for (let i = gegner.length - 1; i >= 0; i--) {
+
+        const g = gegner[i];
+
+        const gegnerLinks = g.x;
+        const gegnerRechts = g.x + GEGNER_BREITE;
+
+        const gegnerOben = g.y;
+        const gegnerUnten = g.y + GEGNER_HOEHE;
+
+        const beruehrung =
+
+            spielerRechts > gegnerLinks &&
+            spielerLinks < gegnerRechts &&
+            spielerUnten > gegnerOben &&
+            spielerOben < gegnerUnten;
+
+        if (beruehrung &&
+            geschwindigkeitY > 0 &&
+            spielerUnten < gegnerOben + 30) {
+
+            g.element.remove();
+
+            gegner.splice(i, 1);
+
+            spielZeit++;
+
+            aktualisiereZeitAnzeige();
+
+            setTimeout(() => {
+
+                neuenGegnerErzeugen();
+
+            }, GEGNER_RESPAWN);
+        }
+    }
+}
 // -----> Spielerposition <-----
 // ==================================================
 
@@ -1038,7 +1128,7 @@ function spielSchleife() {
     // ob Münzen eingesammelt wurden.
 
     pruefeMuenzen();
-
+    pruefeGegner();
     pruefeAlleMuenzen();
 
     // -----> Prüfen ob alle Münzen eingesammelt wurden <-----
@@ -1140,6 +1230,14 @@ function aktualisiereZeitAnzeige() {
 
     zeitAnzeige.textContent =
         "Zeit: " + spielZeit;
+}
+
+// -----> Gegner erzeugen <-----
+// ==================================================
+
+for (let i = 0; i < MAX_GEGNER; i++) {
+
+    neuenGegnerErzeugen();
 }
 
 // -----> Spiel starten <-----
