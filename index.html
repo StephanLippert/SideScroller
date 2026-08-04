@@ -3,24 +3,44 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>SideScroller</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Stickman 2D-Jump'n'Run</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <div id="punkteAnzeige">
-        Münzen: 0
-    </div>
-    <div id="zeitAnzeige">
-        Zeit: 60 Sekunden
+    <div id="statusLeiste">
+        <div id="zeitAnzeige">
+            Zeit: 60
+        </div>
+        <div id="muenzAnzeige">
+            Münzen: 0
+        </div>
     </div>
     <div id="spielfeld">
-        <div id="boden"></div>
         <div id="spieler"></div>
     </div>
-
-    <script src="script.js"></script>
-
+    <div id="gameOverBildschirm" class="versteckt">
+        <h2>Spiel Beendet!</h2>
+        <p id="endErgebnisText">
+            Du hast 0 Münzen gesammelt!
+        </p>
+        <div id="highscoreEingabe">
+            <input type="text" id="spielerNameInput" placeholder="Dein Name..." maxlength="10">
+            <button id="speichernButton">
+                In Highscore eintragen
+            </button>
+        </div>
+        <div id="highscoreBereich">
+            <h3>🏆 Top 10 Bestenliste 🏆</h3>
+            <ol id="highscoreListe"></ol>
+        </div>
+        <button id="neustartButton">
+            Nochmal spielen
+        </button>
+    </div>
+    <script type="module" src="spiel.js">
+    </script>
 </body>
 
 </html>
