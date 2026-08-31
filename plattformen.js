@@ -1,203 +1,149 @@
-const spielfeld = document.getElementById("spielfeld");
-
-const NACHLADE_ABSTAND = 3600;
-const ENTFERNEN_HINTER_SPIELER = 1800;
-const PLATTFORM_BREITE_MIN = 150;
-const PLATTFORM_BREITE_MAX = 220;
-const PLATTFORM_HOEHE = 20;
-const GRUPPE_PLATTFORMEN = 3;
-const MAX_SPRUNG_HOEHE = 110;
-const MAX_SPRUNG_WEITE = 250;
-
-function erstelleElement(plattform) {
+export function erstellePlattformElement(plattform, spielfeld) {
     const element = document.createElement("div");
     element.classList.add("plattform");
+    if (plattform.typ === "start") element.classList.add("plattform-start");
+    if (plattform.beweglich) element.classList.add("plattform-beweglich");
     plattform.element = element;
-    element.style.left = `${plattform.x}px`;
-    element.style.top = `${plattform.y}px`;
     element.style.width = `${plattform.breite}px`;
     element.style.height = `${plattform.hoehe}px`;
     spielfeld.appendChild(element);
+    return element;
 }
 
-function erstellePlattform(welt, x, y, breite, typ = "normal") {
+function zufall(min, max) {
+    return min + Math.random() * (max - min);
+}
+
+function sichereHoehe(welt, alteY, zielY) {
+    const minY = welt.CONFIG.BODEN_Y - 355;
+    const maxY = welt.CONFIG.BODEN_Y - 70;
+    const begrenzt = Math.max(minY, Math.min(maxY, zielY));
+    const delta = Math.max(-welt.CONFIG.maxHoehenAenderung, Math.min(welt.CONFIG.maxHoehenAenderung, begrenzt - alteY));
+    return alteY + delta;
+}
+
+function erstelleBoden(welt, spielfeld) {
+    const boden = {
+        x: 0,
+        y: welt.CONFIG.BODEN_Y,
+        breite: welt.CONFIG.MAX_WELT_BREITE,
+        hoehe: welt.CONFIG.BODEN_HOEHE,
+        typ: "boden",
+        gegnerAnzahl: 0,
+        element: null,
+        beweglich: false
+    };
+    welt.listen.plattformen.push(boden);
+    erstellePlattformElement(boden, spielfeld);
+}
+
+export function erstellePlattform(welt, spielfeld, x, y, breite, typ = "normal", optionen = {}) {
     const plattform = {
         x,
         y,
         breite,
-        hoehe: PLATTFORM_HOEHE,
+        hoehe: welt.CONFIG.PLATTFORM_HOEHE,
         typ,
         element: null,
-        gegnerAnzahl: 0
+        gegnerAnzahl: 0,
+        beweglich: Boolean(optionen.beweglich),
+        basisX: x,
+        bewegungAmp: optionen.amp ?? 0,
+        bewegungTempo: optionen.tempo ?? 0,
+        bewegungPhase: optionen.phase ?? 0
     };
-
     welt.listen.plattformen.push(plattform);
-    erstelleElement(plattform);
+    erstellePlattformElement(plattform, spielfeld);
     return plattform;
 }
 
-function begrenzePlattformHoehe(welt, vorherigeY, neuesY) {
-    const begrenztesY = Math.max(
-        175,
-        Math.min(welt.CONFIG.BODEN_Y - 65, neuesY)
-    );
-
-    const differenz = begrenztesY - vorherigeY;
-
-    if (Math.abs(differenz) <= MAX_SPRUNG_HOEHE) {
-        return begrenztesY;
-    }
-
-    return vorherigeY + Math.sign(differenz) * MAX_SPRUNG_HOEHE;
-}
-
-function erstellePlattformGruppe(welt) {
+function erstelleGruppe(welt, spielfeld) {
     const daten = welt.status.levelDaten;
+    const anzahl = welt.CONFIG.gruppenGroesse;
     let x = daten.naechsteGruppenX;
     let y = daten.letzteY;
 
-    for (let i = 0; i < GRUPPE_PLATTFORMEN; i++) {
-        const breite =
-            PLATTFORM_BREITE_MIN +
-            Math.random() * (PLATTFORM_BREITE_MAX - PLATTFORM_BREITE_MIN);
+    for (let i = 0; i < anzahl; i += 1) {
+        const breite = zufall(welt.CONFIG.platformWidthMin, welt.CONFIG.platformWidthMax);
+        const zielY = i === 0 ? welt.CONFIG.BODEN_Y - zufall(82, 150) : y + zufall(-welt.CONFIG.maxHoehenAenderung, welt.CONFIG.maxHoehenAenderung);
+        y = sichereHoehe(welt, y, zielY);
 
-        if (i === 0) {
-            y = begrenzePlattformHoehe(
-                welt,
-                y,
-                welt.CONFIG.BODEN_Y - (85 + Math.random() * 35)
-            );
-        } else {
-            y = begrenzePlattformHoehe(
-                welt,
-                y,
-                y + (-70 + Math.random() * 110)
-            );
-        }
+        const gap = zufall(welt.CONFIG.platformGapMin, welt.CONFIG.platformGapMax);
+        if (i > 0) x += gap;
 
-        const luecke = 85 + Math.random() * 75;
-        x += i === 0 ? 0 : Math.min(luecke, MAX_SPRUNG_WEITE - 20);
+        const istBeweglich = welt.status.levelId === "mittel" && daten.gruppenNummer % 5 === 2 && i === 1;
+        const istChaos = welt.status.levelId === "schwer" && daten.gruppenNummer % 4 === 1 && i === 2;
 
-        erstellePlattform(
-            welt,
-            x,
-            y,
-            breite,
-            `gruppe-${daten.gruppenNummer}`
-        );
+        erstellePlattform(welt, spielfeld, x, y, breite, istChaos ? "gefährlich" :
+            `gruppe-${daten.gruppenNummer}`, istBeweglich ?
+            { beweglich: true, amp: 45, tempo: 0.0018, phase: Math.random() * Math.PI * 2 } : {});
 
         x += breite;
     }
 
     daten.gruppenNummer += 1;
-    daten.naechsteGruppenX = x + 150 + Math.random() * 90;
+    daten.naechsteGruppenX = x + zufall(120, 210);
     daten.letzteY = y;
 }
 
-export function erstelleZufaelligePlattformen(welt) {
+export function erstelleZufaelligePlattformen(welt, spielfeld) {
     welt.listen.plattformen.length = 0;
+    erstelleBoden(welt, spielfeld);
 
-    const boden = {
-        x: 0,
-        y: welt.CONFIG.BODEN_Y,
-        breite: Number.POSITIVE_INFINITY,
-        hoehe: welt.CONFIG.BODEN_HOEHE,
-        typ: "boden",
-        element: null,
-        gegnerAnzahl: 0
-    };
-
-    welt.listen.plattformen.push(boden);
-    erstelleElement(boden);
-
-    erstellePlattform(
-        welt,
-        55,
-        welt.CONFIG.BODEN_Y - 145,
-        260,
-        "start"
-    );
+    erstellePlattform(welt, spielfeld, 55, welt.CONFIG.BODEN_Y - 145, 280, "start");
 
     welt.status.x = 110;
     welt.status.y = welt.CONFIG.BODEN_Y - 145 - 87;
     welt.status.vorherigesX = welt.status.x;
     welt.status.vorherigesY = welt.status.y;
-
-    welt.status.levelDaten.naechsteGruppenX = 430;
+    welt.status.levelDaten.naechsteGruppenX = 455;
     welt.status.levelDaten.letzteY = welt.CONFIG.BODEN_Y - 145;
     welt.status.levelDaten.gruppenNummer = 0;
 
-    for (let i = 0; i < 12; i++) {
-        erstellePlattformGruppe(welt);
-    }
+    for (let i = 0; i < welt.CONFIG.startGruppen; i += 1) erstelleGruppe(welt, spielfeld);
 }
 
-export function aktualisiereEndlessPlattformen(welt) {
-    let weitestePlattformX = welt.status.x;
-
-    for (const p of welt.listen.plattformen) {
-        if (p.typ === "boden") {
-            continue;
-        }
-
-        weitestePlattformX = Math.max(
-            weitestePlattformX,
-            p.x + p.breite
-        );
+export function aktualisiereEndlessPlattformen(welt, spielfeld) {
+    let weitestesX = welt.status.x;
+    for (const plattform of welt.listen.plattformen) {
+        if (plattform.typ !== "boden") weitestesX = Math.max(weitestesX, plattform.x + plattform.breite);
     }
 
-    let sicherheit = 0;
-
-    while (
-        weitestePlattformX < welt.status.x + NACHLADE_ABSTAND &&
-        sicherheit < 20
+    let sicherheitszaehler = 0;
+    while (weitestesX < welt.status.x + welt.CONFIG.NACHLADE_ABSTAND &&
+        weitheitsLimitNochNichtErreicht(welt) &&
+        sicherheitszaehler < 12
     ) {
-        erstellePlattformGruppe(welt);
-        sicherheit += 1;
-
-        for (const p of welt.listen.plattformen) {
-            if (p.typ !== "boden") {
-                weitestePlattformX = Math.max(
-                    weitestePlattformX,
-                    p.x + p.breite
-                );
-            }
-        }
+        erstelleGruppe(welt, spielfeld);
+        sicherheitszaehler += 1;
+        weitestesX = welt.status.levelDaten.naechsteGruppenX;
     }
 
+    const entferneBis = welt.status.kameraX - welt.CONFIG.ENTFERNEN_HINTER_SPIELER;
     welt.listen.plattformen = welt.listen.plattformen.filter(plattform => {
-        if (plattform.typ === "boden" || plattform.typ === "start") {
-            return true;
-        }
-
-        if (
-            plattform.x + plattform.breite <
-            welt.status.kameraX - ENTFERNEN_HINTER_SPIELER
-        ) {
+        if (plattform.typ === "boden" || plattform.typ === "start") return true;
+        if (plattform.x + plattform.breite < entferneBis) {
             plattform.element?.remove();
             return false;
         }
-
         return true;
     });
 }
 
-export function animierePlattformen(welt) {
-    for (const plattform of welt.listen.plattformen) {
-        if (!plattform.element) {
-            continue;
-        }
-
-        plattform.element.style.left =
-            `${plattform.x - welt.status.kameraX}px`;
-    }
+function weitheitsLimitNochNichtErreicht(welt) {
+    return welt.status.levelDaten.naechsteGruppenX < welt.CONFIG.MAX_WELT_BREITE;
 }
 
-export function plattformenInSichtweite(welt) {
-    return welt.listen.plattformen.filter(
-        plattform =>
-            plattform.typ !== "boden" &&
-            plattform.x < welt.status.x + 1900 &&
-            plattform.x + plattform.breite > welt.status.x - 350
-    );
+export function animierePlattformen(welt) {
+    const jetzt = performance.now();
+    for (const plattform of welt.listen.plattformen) {
+        if (!plattform.element) continue;
+
+        if (plattform.beweglich) {
+            plattform.x = plattform.basisX + Math.sin(jetzt * plattform.bewegungTempo + plattform.bewegungPhase) * plattform.bewegungAmp;
+        }
+
+        plattform.element.style.left = `${plattform.x - welt.status.kameraX}px`;
+        plattform.element.style.top = `${plattform.y}px`;
+    }
 }

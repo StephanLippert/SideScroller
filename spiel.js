@@ -1,29 +1,13 @@
 import { erschaffeSpielWelt } from "./konstanten.js";
-import {
-    erstelleZufaelligePlattformen,
-    aktualisiereEndlessPlattformen,
-    animierePlattformen
-} from "./plattformen.js";
-import {
-    initialisiereMuenzen,
-    aktualisiereMuenzen,
-    animiereMuenzen,
-    pruefeMuenzenKollision,
-    aktualisiereMuenzHinweis
-} from "./muenzen.js";
-import {
-    aktualisiereGegner,
-    bewegeGegner,
-    pruefeGegnerKollision,
-    aktualisiereUnverwundbarkeit
-} from "./gegner.js";
 import { holeLevel } from "./level.js";
+import { erstelleSpielerElement, setzeSpielerDarstellung, setzeSpielerposition } from "./spieler.js";
+import { erstelleZufaelligePlattformen, aktualisiereEndlessPlattformen, animierePlattformen } from "./plattformen.js";
+import { aktualisiereGegner, bewegeGegner, pruefeGegnerKollision, aktualisiereUnverwundbarkeit } from "./gegner.js";
+import { speichereHighscore, zeigeStartHighscores, zeigeHighscoreListe, holeBestenwert } from "./highscore.js";
 import {
-    speichereHighscore,
-    zeigeStartHighscores,
-    zeigeHighscoreListe,
-    holeBestenwert
-} from "./highscore.js";
+    initialisiereMuenzen, aktualisiereMuenzen, animiereMuenzen, pruefeMuenzenKollision, aktualisiereMuenzHinweis, bereinigeVerschwundeneMuenzen
+} from "./muenzen.js";
+
 
 const startBildschirm = document.getElementById("startBildschirm");
 const spielBereich = document.getElementById("spielBereich");
@@ -42,657 +26,350 @@ const startMenuButton = document.getElementById("startMenuButton");
 const highscoreListe = document.getElementById("highscoreListe");
 
 let welt = null;
-let frameId = null;
-let letzterZeitstempel = performance.now();
+let frameId = 0;
 let aktuellesLevel = "leicht";
 let spielBeendenAngezeigt = false;
 
 function formatSekunden(wert) {
-    return `${Math.max(0, wert).toFixed(1).replace(".", ",")}`;
+    return Math.max(0, Number(wert) || 0).toFixed(1).replace(".", ",");
 }
 
-function setzeSpielerBild() {
-    const spielerElement = document.getElementById("spieler");
-
-    if (!spielerElement || !welt) {
-        return;
-    }
-
-    const bewegtSich =
-        welt.status.spielGestartet &&
-        (welt.listen.tasten.ArrowLeft || welt.listen.tasten.ArrowRight);
-
-    const istInLuft = !welt.status.istAmBoden;
-    let datei = "StickmanStandingStart.png";
-
-    if (istInLuft) {
-        datei =
-            welt.status.blickrichtung === "rechts"
-                ? "StickmangSpringenRechts.png"
-                : "StickmangSpringenLinks.png";
-    } else if (bewegtSich) {
-        datei =
-            welt.status.blickrichtung === "rechts"
-                ? "StickmangLaufenRechts.png"
-                : "StickmangLaufenLinks.png";
-    } else if (welt.status.spielGestartet) {
-        datei =
-            welt.status.blickrichtung === "rechts"
-                ? "StickmangSeitenansichtRechts.png"
-                : "StickmangSeitenansichtLinks.png";
-    }
-
-    const neuerPfad = `url("./images/${datei}")`;
-
-    if (spielerElement.style.backgroundImage !== neuerPfad) {
-        spielerElement.style.backgroundImage = neuerPfad;
-    }
-
-    spielerElement.classList.toggle("spieler-laeuft", Boolean(bewegtSich && !istInLuft));
+function entferneAlteObjekte() {
+    spielfeld.querySelectorAll(".plattform, .gegner, .muenze, #muenzenHinweis, #spieler").forEach(e => e.remove());
 }
 
-function setzeSpielerposition() {
-    const spielerElement = document.getElementById("spieler");
-
-    if (!spielerElement || !welt) {
-        return;
-    }
-
-    spielerElement.style.left =
-        `${welt.status.x - welt.status.kameraX}px`;
-    spielerElement.style.top = `${welt.status.y}px`;
+function richteSpielfeldEin(levelId) {
+    spielfeld.className = `level-${levelId}`;
+    const spieler = erstelleSpielerElement();
+    spielfeld.appendChild(spieler);
 }
 
-function aktualisiereAnzeigen() {
-    if (!welt) {
-        return;
-    }
-
-    const level = holeLevel(welt.status.levelId);
-    levelAnzeige.textContent = level.name;
-
-    if (welt.status.levelId === "schwer") {
-        zeitAnzeige.textContent =
-            `Zeit: ${formatSekunden(welt.status.restZeit)}`;
-        zielAnzeige.textContent = "60 Sek.";
-    } else if (welt.status.levelId === "mittel") {
-        zeitAnzeige.textContent =
-            `Zeit: ${formatSekunden(welt.status.spielZeit)}`;
-        zielAnzeige.textContent = "Ziel: 100 Münzen";
-    } else {
-        zeitAnzeige.textContent =
-            `Zeit: ${formatSekunden(welt.status.spielZeit)}`;
-        zielAnzeige.textContent = "Ziel: 100 Münzen";
-    }
-
-    muenzAnzeige.textContent =
-        `Münzen: ${welt.status.gesammelteMuenzen}`;
-}
-
-function entferneDynamischeElemente() {
-    spielfeld
-        .querySelectorAll(".plattform, .gegner, .muenze, #muenzenHinweis")
-        .forEach(element => element.remove());
-
-    const vorhandenerSpieler = document.getElementById("spieler");
-    vorhandenerSpieler?.remove();
-
-    const spielerElement = document.createElement("div");
-    spielerElement.id = "spieler";
-    spielfeld.appendChild(spielerElement);
-}
-
-function richteSpielfeldFuerSpielEin() {
-    const spielerElement = document.getElementById("spieler");
-
-    if (!spielerElement) {
-        return;
-    }
-
-    spielerElement.className = "";
-    spielerElement.style.backgroundImage =
-        'url("./images/StickmanStandingStart.png")';
-}
-
-function renderBereitZustand() {
-    if (!welt) {
-        return;
-    }
-
-    welt.status.kameraX = 0;
-    setzeSpielerBild();
-    setzeSpielerposition();
-    animierePlattformen(welt);
-    animiereMuenzen(welt);
-    aktualisiereAnzeigen();
-    aktualisiereMuenzHinweis(welt);
-}
-
-function zeigeStartbildschirm() {
-    if (frameId) {
-        cancelAnimationFrame(frameId);
-        frameId = null;
-    }
-
-    welt = null;
-    spielBeendenAngezeigt = false;
-
-    spielBereich.classList.add("versteckt");
-    gameOverBildschirm.classList.add("versteckt");
-    startBildschirm.classList.remove("versteckt");
-
-    zeigeStartHighscores();
-}
-
-function spielStarten(levelId) {
-    aktuellesLevel = levelId;
-    spielBeendenAngezeigt = false;
-
-    if (frameId) {
-        cancelAnimationFrame(frameId);
-        frameId = null;
-    }
-
-    welt = erschaffeSpielWelt(levelId);
-
-    entferneDynamischeElemente();
-    richteSpielfeldFuerSpielEin();
-
-    startBildschirm.classList.add("versteckt");
-    gameOverBildschirm.classList.add("versteckt");
-    spielBereich.classList.remove("versteckt");
-
-    erstelleZufaelligePlattformen(welt);
-    initialisiereMuenzen(welt);
-
-    welt.status.spielGestartet = false;
-    welt.status.levelDaten.naechsterGegnerSpawn =
-        performance.now() + welt.CONFIG.GEGNER_SPAWN_INTERVAL;
-
-    letzterZeitstempel = performance.now();
-    renderBereitZustand();
-}
-
-function starteEigentlichesSpiel() {
-    if (!welt || welt.status.spielGestartet || welt.status.spielBeendet) {
-        return;
-    }
-
-    welt.status.spielGestartet = true;
-    letzterZeitstempel = performance.now();
-
-    aktualisiereGegner(welt);
-    setzeSpielerBild();
-    frameId = requestAnimationFrame(spielSchleife);
-}
-
-function breiteHitbox(x = welt.status.x, y = welt.status.y) {
+function breiteHitbox(welt, x = welt.status.x, y = welt.status.y) {
     return {
         links: x + welt.CONFIG.SPIELER_HITBOX_X,
-        rechts:
-            x +
-            welt.CONFIG.SPIELER_HITBOX_X +
-            welt.CONFIG.SPIELER_HITBOX_BREITE,
+        rechts: x + welt.CONFIG.SPIELER_HITBOX_X + welt.CONFIG.SPIELER_HITBOX_BREITE,
         oben: y + welt.CONFIG.SPIELER_HITBOX_Y,
-        unten:
-            y +
-            welt.CONFIG.SPIELER_HITBOX_Y +
-            welt.CONFIG.SPIELER_HITBOX_HOEHE
+        unten: y + welt.CONFIG.SPIELER_HITBOX_Y + welt.CONFIG.SPIELER_HITBOX_HOEHE
     };
 }
 
-function ermittleLinkeGrenze() {
-    return 0;
-}
-
 function pruefePlattformKollision() {
-    const aktuelleX = welt.status.x;
-    const aktuelleY = welt.status.y;
-    const vorherigeX = welt.status.vorherigesX;
-    const vorherigeY = welt.status.vorherigesY;
+    if (!welt) return;
 
-    const hitboxBreite = welt.CONFIG.SPIELER_HITBOX_BREITE;
-    const hitboxHoehe = welt.CONFIG.SPIELER_HITBOX_HOEHE;
-    const hitboxOffsetX = welt.CONFIG.SPIELER_HITBOX_X;
-    const hitboxOffsetY = welt.CONFIG.SPIELER_HITBOX_Y;
+    const cfg = welt.CONFIG;
+    let x = welt.status.x;
+    let y = welt.status.y;
+    const vorherX = welt.status.vorherigesX;
+    const vorherY = welt.status.vorherigesY;
+    const vorher = breiteHitbox(welt, vorherX, vorherY);
 
-    const vorherLinks = vorherigeX + hitboxOffsetX;
-    const vorherRechts = vorherLinks + hitboxBreite;
-    const vorherOben = vorherigeY + hitboxOffsetY;
-    const vorherUnten = vorherOben + hitboxHoehe;
+    for (const p of welt.listen.plattformen) {
+        if (p.typ === "boden") continue;
+        const links = x + cfg.SPIELER_HITBOX_X;
+        const rechts = links + cfg.SPIELER_HITBOX_BREITE;
+        const oben = y + cfg.SPIELER_HITBOX_Y;
+        const unten = oben + cfg.SPIELER_HITBOX_HOEHE;
+        if (unten <= p.y || oben >= p.y + p.hoehe) continue;
 
-    let x = aktuelleX;
-    let y = aktuelleY;
-
-    // 1. Zuerst horizontale Kollisionen behandeln.
-    //    Dadurch kann der Spieler Plattformen weder von links noch
-    //    von rechts durchlaufen.
-    for (const plattform of welt.listen.plattformen) {
-        const istBoden = plattform.typ === "boden";
-        if (istBoden) continue;
-
-        const plattformLinks = plattform.x;
-        const plattformRechts = plattform.x + plattform.breite;
-        const plattformOben = plattform.y;
-        const plattformUnten = plattform.y + plattform.hoehe;
-
-        const aktuellesLinks = x + hitboxOffsetX;
-        const aktuellesRechts = aktuellesLinks + hitboxBreite;
-        const aktuellesOben = y + hitboxOffsetY;
-        const aktuellesUnten = aktuellesOben + hitboxHoehe;
-
-        const vertikalUeberlappt =
-            aktuellesUnten > plattformOben &&
-            aktuellesOben < plattformUnten;
-
-        if (!vertikalUeberlappt) continue;
-
-        if (
-            vorherRechts <= plattformLinks &&
-            aktuellesRechts > plattformLinks
-        ) {
-            x = plattformLinks - hitboxOffsetX - hitboxBreite - 0.01;
-        } else if (
-            vorherLinks >= plattformRechts &&
-            aktuellesLinks < plattformRechts
-        ) {
-            x = plattformRechts - hitboxOffsetX + 0.01;
-        }
+        if (vorher.rechts <= p.x && rechts > p.x) x = p.x - cfg.SPIELER_HITBOX_X - cfg.SPIELER_HITBOX_BREITE - 0.01;
+        else if (vorher.links >= p.x + p.breite && links < p.x + p.breite) x = p.x + p.breite - cfg.SPIELER_HITBOX_X + 0.01;
     }
 
-    welt.status.x = x;
-
-    // Aktuelle Hitbox nach der horizontalen Korrektur.
-    const jetztLinks = x + hitboxOffsetX;
-    const jetztRechts = jetztLinks + hitboxBreite;
-    const jetztOben = y + hitboxOffsetY;
-    const jetztUnten = jetztOben + hitboxHoehe;
-
+    welt.status.x = Math.max(0, x);
+    const jetzt = breiteHitbox(welt, welt.status.x, y);
     let landung = null;
-    let deckenkollision = null;
+    let decke = null;
 
-    // 2. Vertikale Kollisionen.
-    //    Von oben landen: nur wenn der Spieler im vorherigen Frame
-    //    noch oberhalb der Plattform war und nach unten bewegt wurde.
-    //    Von unten: ebenfalls stoppen. Dadurch kann man nicht durch
-    //    eine Plattform nach oben hindurch springen.
-    for (const plattform of welt.listen.plattformen) {
-        const plattformLinks = plattform.x;
-        const plattformRechts =
-            plattform.x + plattform.breite;
-        const plattformOben = plattform.y;
-        const plattformUnten =
-            plattform.y + plattform.hoehe;
+    for (const p of welt.listen.plattformen) {
+        if (jetzt.rechts <= p.x || jetzt.links >= p.x + p.breite) continue;
 
-        const horizontalUeberlappt =
-            jetztRechts > plattformLinks &&
-            jetztLinks < plattformRechts;
-
-        if (!horizontalUeberlappt) continue;
-
-        if (
-            welt.status.geschwindigkeitY >= 0 &&
-            vorherUnten <= plattformOben &&
-            jetztUnten >= plattformOben
-        ) {
-            if (
-                !landung ||
-                plattformOben < landung.y
-            ) {
-                landung = plattform;
-            }
-            continue;
-        }
-
-        if (
-            welt.status.geschwindigkeitY < 0 &&
-            vorherOben >= plattformUnten &&
-            jetztOben <= plattformUnten
-        ) {
-            if (
-                !deckenkollision ||
-                plattformUnten > deckenkollision.y
-            ) {
-                deckenkollision = plattform;
-            }
+        if (welt.status.geschwindigkeitY >= 0 && vorher.unten <= p.y && jetzt.unten >= p.y) {
+            if (!landung || p.y < landung.y) landung = p;
+        } else if (welt.status.geschwindigkeitY < 0 && vorher.oben >= p.y + p.hoehe && jetzt.oben <= p.y + p.hoehe) {
+            if (!decke || p.y + p.hoehe > decke.y + decke.hoehe) decke = p;
         }
     }
 
     if (landung) {
-        welt.status.y =
-            landung.y - hitboxOffsetY - hitboxHoehe;
-
+        welt.status.y = landung.y - cfg.SPIELER_HITBOX_Y - cfg.SPIELER_HITBOX_HOEHE;
         welt.status.geschwindigkeitY = 0;
         welt.status.istAmBoden = true;
+        welt.status.aktuellePlattform = landung;
         return;
     }
 
-    if (deckenkollision) {
-        welt.status.y =
-            deckenkollision.y - hitboxOffsetY;
-
-        welt.status.geschwindigkeitY = 0.25;
+    if (decke) {
+        welt.status.y = decke.y + decke.hoehe - cfg.SPIELER_HITBOX_Y;
+        welt.status.geschwindigkeitY = 0.3;
         welt.status.istAmBoden = false;
         return;
     }
 
-    const bodenY =
-        welt.CONFIG.BODEN_Y - welt.CONFIG.SPIELER_HOEHE;
-
-    if (
-        welt.status.y >= bodenY &&
-        welt.status.geschwindigkeitY >= 0
-    ) {
+    const bodenY = cfg.BODEN_Y - cfg.SPIELER_HOEHE;
+    if (welt.status.y >= bodenY && welt.status.geschwindigkeitY >= 0) {
         welt.status.y = bodenY;
         welt.status.geschwindigkeitY = 0;
         welt.status.istAmBoden = true;
+        welt.status.aktuellePlattform = welt.listen.plattformen.find(p => p.typ === "boden") || null;
         return;
     }
 
     welt.status.istAmBoden = false;
+    welt.status.aktuellePlattform = null;
 }
 
-function ermittleLaufGeschwindigkeit() {
-    if (!welt) {
-        return 0;
-    }
-
-    return (
-        welt.CONFIG.LAUF_GESCHWINDIGKEIT *
-        welt.status.laufGeschwindigkeitsFaktor
-    );
-}
-
-function bewegeSpieler() {
+function bewegeSpieler(delta) {
+    const cfg = welt.CONFIG;
     welt.status.vorherigesX = welt.status.x;
     welt.status.vorherigesY = welt.status.y;
 
-    const geschwindigkeit = ermittleLaufGeschwindigkeit();
-
-    if (welt.listen.tasten.ArrowRight) {
-        welt.status.x += geschwindigkeit;
-        welt.status.blickrichtung = "rechts";
+    const richtung = (welt.listen.tasten.ArrowRight ? 1 : 0) - (welt.listen.tasten.ArrowLeft ? 1 : 0);
+    if (richtung !== 0) {
+        welt.status.x += richtung * cfg.LAUF_GESCHWINDIGKEIT * welt.status.laufGeschwindigkeitsFaktor;
+        welt.status.blickrichtung = richtung > 0 ? "rechts" : "links";
+        welt.status.laufPhase += delta * 14;
+    } else {
+        welt.status.laufPhase += delta * 2;
     }
 
-    if (welt.listen.tasten.ArrowLeft) {
-        welt.status.x -= geschwindigkeit;
-        welt.status.blickrichtung = "links";
-    }
-
-    welt.status.x = Math.max(
-        ermittleLinkeGrenze(),
-        welt.status.x
-    );
-
-    welt.status.geschwindigkeitY += welt.CONFIG.SCHWERKRAFT;
+    welt.status.x = Math.max(0, Math.min(cfg.MAX_WELT_BREITE - cfg.SPIELER_BREITE, welt.status.x));
+    welt.status.geschwindigkeitY += cfg.SCHWERKRAFT;
+    welt.status.geschwindigkeitY = Math.min(22, welt.status.geschwindigkeitY);
     welt.status.y += welt.status.geschwindigkeitY;
 
     pruefePlattformKollision();
 }
 
 function aktualisiereKamera() {
-    welt.status.kameraX = Math.max(
-        0,
-        welt.status.x - welt.CONFIG.SPIELFELD_BREITE / 2
-    );
+    const ziel = welt.status.x - welt.CONFIG.SPIELFELD_BREITE * 0.42;
+    welt.status.kameraX = Math.max(0, Math.min(welt.CONFIG.MAX_WELT_BREITE - welt.CONFIG.SPIELFELD_BREITE, ziel));
 }
 
-function aktualisiereLevelZeit(deltaZeit) {
+function aktualisiereZeit(delta) {
     if (welt.status.levelId === "schwer") {
-        welt.status.restZeit = Math.max(
-            0,
-            welt.status.restZeit - deltaZeit
-        );
-
-        if (welt.status.restZeit <= 0) {
-            welt.status.spielBeendet = true;
-            welt.status.spielGewonnen = true;
-            welt.status.ergebnisGrund = "zeit-abgelaufen";
-        }
-
-        return;
+        welt.status.restZeit = Math.max(0, welt.status.restZeit - delta);
+        if (welt.status.restZeit <= 0) beendeSpiel(true, "zeit-abgelaufen");
+    } else {
+        welt.status.spielZeit += delta;
     }
-
-    welt.status.spielZeit = Math.max(
-        0,
-        welt.status.spielZeit + deltaZeit
-    );
 }
 
-function aktualisiereHintergrund() {
-    const versatz = -(welt.status.kameraX * 0.15);
-    spielfeld.style.backgroundPosition = `${versatz}px 0px`;
+function aktualisiereAnzeige() {
+    if (!welt) return;
+    const level = holeLevel(welt.status.levelId);
+    levelAnzeige.textContent = level.name;
+    if (welt.status.levelId === "schwer") {
+        zeitAnzeige.textContent = `Zeit: ${formatSekunden(welt.status.restZeit)}`;
+        zielAnzeige.textContent = "Ziel: 60 Sek.";
+    } else {
+        zeitAnzeige.textContent = `Zeit: ${formatSekunden(welt.status.spielZeit)}`;
+        zielAnzeige.textContent = welt.status.levelId === "mittel" ? "Ziel: 100 Münzen" : "Ziel: 100 Münzen";
+    }
+    muenzAnzeige.textContent = `Münzen: ${welt.status.gesammelteMuenzen}`;
+}
+
+function pruefeLevelziel() {
+    if (!welt || welt.status.spielBeendet) return;
+    if (welt.status.levelId === "leicht" && welt.status.gesammelteMuenzen >= welt.CONFIG.zielMuenzen) beendeSpiel(true, "ziel-erreicht");
+    if (welt.status.levelId === "mittel" && welt.status.gesammelteMuenzen >= welt.CONFIG.zielMuenzen) beendeSpiel(true, "alle-muenzen");
+}
+
+function spielStarten(levelId) {
+    aktuellesLevel = levelId;
+    spielBeendenAngezeigt = false;
+    if (frameId) cancelAnimationFrame(frameId);
+    frameId = 0;
+    welt = erschaffeSpielWelt(levelId);
+
+    entferneAlteObjekte();
+    richteSpielfeldEin(levelId);
+    startBildschirm.classList.add("versteckt");
+    gameOverBildschirm.classList.add("versteckt");
+    spielBereich.classList.remove("versteckt");
+
+    erstelleZufaelligePlattformen(welt, spielfeld);
+    initialisiereMuenzen(welt, spielfeld);
+    animierePlattformen(welt);
+    animiereMuenzen(welt);
+    setzeSpielerDarstellung(welt);
+    setzeSpielerposition(welt);
+    aktualisiereAnzeige();
+    aktualisiereMuenzHinweis(welt);
+}
+
+function starteEigentlichesSpiel() {
+    if (!welt || welt.status.spielGestartet || welt.status.spielBeendet) return;
+    welt.status.spielGestartet = true;
+    welt.status.letzterFrame = performance.now();
+    welt.status.levelDaten.naechsterGegnerSpawn = performance.now() + welt.CONFIG.gegnerIntervall;
+    frameId = requestAnimationFrame(spielSchleife);
+}
+
+function springe() {
+    if (!welt || !welt.status.spielGestartet || !welt.status.istAmBoden || welt.status.spielBeendet) return;
+    welt.status.geschwindigkeitY = welt.CONFIG.SPRUNG_KRAFT;
+    welt.status.istAmBoden = false;
+}
+
+function beendeSpiel(gewonnen, grund) {
+    if (!welt || welt.status.spielBeendet) return;
+    welt.status.spielBeendet = true;
+    welt.status.spielGewonnen = gewonnen;
+    welt.status.ergebnisGrund = grund;
+}
+
+function sichereFehlerbehandlung() {
+    if (!welt || welt.status.fehler) return;
+    welt.status.fehler = true;
+    welt.status.spielBeendet = true;
+    welt.status.spielGewonnen = false;
+    welt.status.ergebnisGrund = "sicherheitsstopp";
 }
 
 function formatiereEnde() {
     const level = holeLevel(welt.status.levelId);
-    const zeit =
-        welt.status.levelId === "schwer"
-            ? welt.CONFIG.LEVEL_SCHWER_ZEIT - welt.status.restZeit
-            : welt.status.spielZeit;
-
-    if (welt.status.levelId === "leicht") {
-        endTitel.textContent =
-            welt.status.spielGewonnen
-                ? "100 Münzen geschafft!"
-                : "Level beendet";
-
-        endErgebnisText.textContent =
-            `Du hast ${welt.status.gesammelteMuenzen} Münzen gesammelt und ${formatSekunden(zeit)} Sekunden benötigt.`;
-    } else if (welt.status.levelId === "mittel") {
-        if (welt.status.ergebnisGrund === "alle-muenzen") {
-            endTitel.textContent = "Alle 100 Münzen!";
-        } else {
-            endTitel.textContent = "Die Zeit der Münzen ist vorbei";
-        }
-
-        endErgebnisText.textContent =
-            `Du hast ${welt.status.gesammelteMuenzen} Münzen in ${formatSekunden(zeit)} Sekunden eingesammelt.`;
+    const zeit = welt.status.levelId === "schwer" ? welt.CONFIG.zeitLimit - welt.status.restZeit : welt.status.spielZeit;
+    if (welt.status.ergebnisGrund === "sicherheitsstopp") {
+        endTitel.textContent = "Spiel sicher angehalten";
+        endErgebnisText.textContent = `Gesammelt: ${welt.status.gesammelteMuenzen} Münzen.`;
+    } else if (level.id === "leicht") {
+        endTitel.textContent = welt.status.spielGewonnen ? "100 Münzen geschafft!" : "Level beendet";
+        endErgebnisText.textContent = `Du hast ${welt.status.gesammelteMuenzen} Münzen gesammelt und ${formatSekunden(zeit)} Sekunden benötigt.`;
+    } else if (level.id === "mittel") {
+        endTitel.textContent = welt.status.spielGewonnen ? "Alle 100 Münzen!" : "Die Münzen sind weg";
+        endErgebnisText.textContent = `Du hast ${welt.status.gesammelteMuenzen} Münzen in ${formatSekunden(zeit)} Sekunden eingesammelt.`;
     } else {
         endTitel.textContent = "Zeit abgelaufen!";
-        endErgebnisText.textContent =
-            `Du hast ${welt.status.gesammelteMuenzen} Münzen in ${formatSekunden(zeit)} Sekunden gesammelt.`;
+        endErgebnisText.textContent = `Du hast ${welt.status.gesammelteMuenzen} Münzen in ${formatSekunden(zeit)} Sekunden gesammelt.`;
     }
-
     zeigeHighscoreListe(level.id, highscoreListe);
 }
 
-function spielBeenden() {
-    if (
-        !welt ||
-        !welt.status.spielBeendet ||
-        spielBeendenAngezeigt
-    ) {
-        return;
-    }
-
+function zeigeErgebnis() {
+    if (!welt || spielBeendenAngezeigt) return;
     spielBeendenAngezeigt = true;
-
-    if (frameId) {
-        cancelAnimationFrame(frameId);
-        frameId = null;
-    }
-
-    const level = holeLevel(welt.status.levelId);
-    const zeit =
-        level.id === "schwer"
-            ? welt.CONFIG.LEVEL_SCHWER_ZEIT - welt.status.restZeit
-            : welt.status.spielZeit;
-    const bestwert = holeBestenwert(level.id);
-
+    if (frameId) cancelAnimationFrame(frameId);
+    frameId = 0;
     spielBereich.classList.add("versteckt");
     gameOverBildschirm.classList.remove("versteckt");
-
     spielerNameInput.value = "";
     formatiereEnde();
 
-    let istBestwert = false;
-
-    if (level.id === "schwer") {
-        istBestwert =
-            !bestwert ||
-            welt.status.gesammelteMuenzen > bestwert.muenzen ||
-            (
-                welt.status.gesammelteMuenzen === bestwert.muenzen &&
-                zeit < bestwert.zeit
-            );
-    } else if (level.id === "mittel") {
-        istBestwert =
-            welt.status.spielGewonnen &&
-            (
-                !bestwert ||
-                zeit < bestwert.zeit
-            );
-    } else {
-        istBestwert =
-            welt.status.spielGewonnen &&
-            (!bestwert || zeit < bestwert.zeit);
-    }
-
-    speichernButton.disabled = !istBestwert;
-    speichernButton.textContent =
-        istBestwert ? "Highscore speichern" : "Kein neuer Highscore";
+    const level = holeLevel(welt.status.levelId);
+    const zeit = level.id === "schwer" ? welt.CONFIG.zeitLimit - welt.status.restZeit : welt.status.spielZeit;
+    const best = holeBestenwert(level.id);
+    const neuerHighscore = level.id === "schwer"
+        ? !best || welt.status.gesammelteMuenzen > best.muenzen || (welt.status.gesammelteMuenzen === best.muenzen && zeit < best.zeit)
+        : welt.status.spielGewonnen && (!best || zeit < best.zeit);
+    speichernButton.disabled = !neuerHighscore;
+    speichernButton.textContent = neuerHighscore ? "Highscore speichern" : "Kein neuer Highscore";
 }
 
 function spielSchleife(jetzt) {
     if (!welt || welt.status.spielBeendet) {
-        spielBeenden();
+        zeigeErgebnis();
         return;
     }
 
-    const deltaZeit = Math.min(
-        0.05,
-        Math.max(0, (jetzt - letzterZeitstempel) / 1000)
-    );
+    try {
+        const rawDelta = (jetzt - welt.status.letzterFrame) / 1000;
+        const delta = Math.max(0, Math.min(welt.CONFIG.MAX_DELTA, rawDelta || 0));
+        welt.status.letzterFrame = jetzt;
 
-    letzterZeitstempel = jetzt;
-
-    aktualisiereLevelZeit(deltaZeit);
-
-    if (welt.status.spielBeendet) {
-        spielBeenden();
-        return;
-    }
-
-    bewegeSpieler();
-    aktualisiereEndlessPlattformen(welt);
-    aktualisiereKamera();
-
-    aktualisiereMuenzen(welt);
-    aktualisiereGegner(welt);
-    bewegeGegner(welt);
-
-    pruefeMuenzenKollision(welt);
-    pruefeGegnerKollision(welt);
-    aktualisiereUnverwundbarkeit(welt);
-
-    if (
-        welt.status.levelId === "leicht" &&
-        welt.status.gesammelteMuenzen >= welt.CONFIG.LEVEL_LEICHT_ZIEL
-    ) {
-        welt.status.spielBeendet = true;
-        welt.status.spielGewonnen = true;
-        welt.status.ergebnisGrund = "ziel-erreicht";
-    }
-
-    if (welt.status.spielBeendet) {
-        spielBeenden();
-        return;
-    }
-
-    animierePlattformen(welt);
-    animiereMuenzen(welt);
-    aktualisiereMuenzHinweis(welt);
-    setzeSpielerBild();
-    setzeSpielerposition();
-    aktualisiereAnzeigen();
-    aktualisiereHintergrund();
-
-    frameId = requestAnimationFrame(spielSchleife);
-}
-
-function tastendruckStartetSpiel(event) {
-    if (
-        !welt ||
-        welt.status.spielBeendet ||
-        !["ArrowLeft", "ArrowRight", "ArrowUp", " "].includes(event.key)
-    ) {
-        return;
-    }
-
-    event.preventDefault();
-
-    if (!welt.status.spielGestartet) {
-        welt.listen.tasten[event.key] = true;
-        starteEigentlichesSpiel();
-
-        if (event.key === "ArrowUp" || event.key === " ") {
-            welt.status.geschwindigkeitY = welt.CONFIG.SPRUNG_KRAFT;
-            welt.status.istAmBoden = false;
+        aktualisiereZeit(delta);
+        if (welt.status.spielBeendet) {
+            zeigeErgebnis();
+            return;
         }
 
-        return;
-    }
+        animierePlattformen(welt);
+        bewegeSpieler(delta);
+        aktualisiereEndlessPlattformen(welt, spielfeld);
+        aktualisiereKamera();
+        aktualisiereMuenzen(welt, spielfeld);
+        aktualisiereGegner(welt, spielfeld);
+        bewegeGegner(welt);
+        pruefeMuenzenKollision(welt);
+        pruefeGegnerKollision(welt);
+        aktualisiereUnverwundbarkeit(welt);
+        bereinigeVerschwundeneMuenzen(welt);
+        pruefeLevelziel();
 
-    welt.listen.tasten[event.key] = true;
+        if (welt.status.spielBeendet) {
+            zeigeErgebnis();
+            return;
+        }
 
-    if (
-        (event.key === "ArrowUp" || event.key === " ") &&
-        welt.status.istAmBoden
-    ) {
-        welt.status.geschwindigkeitY = welt.CONFIG.SPRUNG_KRAFT;
-        welt.status.istAmBoden = false;
+        animierePlattformen(welt);
+        animiereMuenzen(welt);
+        setzeSpielerDarstellung(welt);
+        setzeSpielerposition(welt);
+        aktualisiereMuenzHinweis(welt);
+        aktualisiereAnzeige();
+        spielfeld.style.backgroundPosition = `${-(welt.status.kameraX * 0.15)}px 0px`;
+
+        frameId = requestAnimationFrame(spielSchleife);
+    } catch (error) {
+        console.error("Spielschleife beendet:", error);
+        sichereFehlerbehandlung();
+        zeigeErgebnis();
     }
 }
 
-window.addEventListener("keydown", tastendruckStartetSpiel);
+function tastendruck(event) {
+    if (!welt || welt.status.spielBeendet) return;
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", " "].includes(event.key)) return;
+    event.preventDefault();
+    if (!welt.status.spielGestartet) starteEigentlichesSpiel();
+    welt.listen.tasten[event.key] = true;
+    if (event.key === "ArrowUp" || event.key === " ") springe();
+}
 
+window.addEventListener("keydown", tastendruck);
 window.addEventListener("keyup", event => {
-    if (!welt) {
-        return;
+    if (welt) welt.listen.tasten[event.key] = false;
+});
+window.addEventListener("blur", () => {
+    if (!welt) return;
+    welt.listen.tasten = Object.create(null);
+});
+window.addEventListener("error", event => {
+    if (welt?.status.spielGestartet && !welt.status.spielBeendet) {
+        console.error(event.error || event.message);
+        sichereFehlerbehandlung();
     }
-
-    welt.listen.tasten[event.key] = false;
+});
+window.addEventListener("unhandledrejection", event => {
+    if (welt?.status.spielGestartet && !welt.status.spielBeendet) {
+        console.error(event.reason);
+        sichereFehlerbehandlung();
+    }
 });
 
-document.querySelectorAll(".levelStartButton").forEach(button => {
-    button.addEventListener("click", () => {
-        spielStarten(button.dataset.level);
-    });
-});
+document.querySelectorAll(".levelStartButton").forEach(button => button.addEventListener("click", () => spielStarten(button.dataset.level)));
 
 speichernButton.addEventListener("click", () => {
-    if (!welt || speichernButton.disabled) {
-        return;
-    }
-
+    if (!welt || speichernButton.disabled) return;
     const name = spielerNameInput.value.trim() || "Spieler";
-    const zeit =
-        welt.status.levelId === "schwer"
-            ? welt.CONFIG.LEVEL_SCHWER_ZEIT - welt.status.restZeit
-            : welt.status.spielZeit;
-
-    speichereHighscore(
-        welt.status.levelId,
-        name,
-        welt.status.gesammelteMuenzen,
-        zeit
-    );
-
+    const zeit = welt.status.levelId === "schwer" ? welt.CONFIG.zeitLimit - welt.status.restZeit : welt.status.spielZeit;
+    speichereHighscore(welt.status.levelId, name, welt.status.gesammelteMuenzen, zeit);
     speichernButton.disabled = true;
     speichernButton.textContent = "Gespeichert";
-
     zeigeHighscoreListe(welt.status.levelId, highscoreListe);
     zeigeStartHighscores();
 });
 
-neustartButton.addEventListener("click", () => {
-    spielStarten(aktuellesLevel);
-});
-
+neustartButton.addEventListener("click", () => spielStarten(aktuellesLevel));
 startMenuButton.addEventListener("click", () => {
-    zeigeStartbildschirm();
+    if (frameId) cancelAnimationFrame(frameId);
+    frameId = 0;
+    welt = null;
+    spielBeendenAngezeigt = false;
+    entferneAlteObjekte();
+    spielBereich.classList.add("versteckt");
+    gameOverBildschirm.classList.add("versteckt");
+    startBildschirm.classList.remove("versteckt");
+    zeigeStartHighscores();
 });
 
-richteSpielfeldFuerSpielEin();
-zeigeStartbildschirm();
+zeigeStartHighscores();

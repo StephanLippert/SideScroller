@@ -1,554 +1,281 @@
-const GEGNER_ENTFERNUNG_HINTER_SPIELER = 1400;
-const STOSS_DAUER = 1000;
+const GEGNER_TYPEN = Object.freeze({
+    gruen: { klasse: "gegner-gruen", tempo: 1.45, sprung: -10.2, springen: 0.22, schaden: "langsam" },
+    violett: { klasse: "gegner-violett", tempo: 1.8, sprung: -11.2, springen: 0.32, schaden: "ruck" },
+    rot: { klasse: "gegner-rot", tempo: 2.35, sprung: -12.3, springen: 0.42, schaden: "stark" },
+    blau: { klasse: "gegner-blau", tempo: 1.8, sprung: -13.5, springen: 0.52, schaden: "flieg" }
+});
 
-function istAktiverGegner(gegner) {
-    return gegner && !gegner.eliminiert && !gegner.entfernt;
+function istAktiv(g) {
+    return Boolean(g && !g.eliminiert && !g.entfernt);
 }
 
 function findeBoden(welt) {
     return welt.listen.plattformen.find(p => p.typ === "boden") || null;
 }
 
-function findePlattformSpawn(welt) {
-    const kandidaten = welt.listen.plattformen.filter(plattform => {
-        if (plattform.typ === "boden") {
-            return false;
-        }
+function waehleTyp(welt) {
+    const erlaubte = welt.CONFIG.gegnerTypen || Object.keys(GEGNER_TYPEN);
+    return erlaubte[Math.floor(Math.random() * erlaubte.length)] || "gruen";
+}
 
-        if ((plattform.gegnerAnzahl || 0) > 0) {
-            return false;
-        }
-
-        return (
-            plattform.x > welt.status.x + 450 &&
-            plattform.x < welt.status.x + welt.CONFIG.GEGNER_SPAWN_ENTFERNUNG + 900 &&
-            plattform.breite >= welt.CONFIG.GEGNER_BREITE + 25
-        );
+function waehleSpawnPlattform(welt) {
+    const kandidaten = welt.listen.plattformen.filter(p => {
+        if (p.typ === "boden" || p.gegnerAnzahl > 0) return false;
+        return p.x > welt.status.x + 420 && p.x < welt.status.x + 2100 && p.breite >= welt.CONFIG.GEGNER_BREITE + 25;
     });
-
-    if (!kandidaten.length) {
-        return null;
-    }
-
-    return kandidaten[Math.floor(Math.random() * kandidaten.length)];
+    return kandidaten.length ? kandidaten[Math.floor(Math.random() * kandidaten.length)] : null;
 }
 
-function findeBodenSpawn(welt) {
-    const boden = findeBoden(welt);
-
-    if (!boden) {
-        return null;
-    }
-
-    return {
-        plattform: boden,
-        x:
-            welt.status.x +
-            welt.CONFIG.GEGNER_SPAWN_ENTFERNUNG +
-            250 +
-            Math.random() * 500
-    };
+function kollidiertMitAnderem(welt, x, plattform) {
+    return welt.listen.gegner.some(g => istAktiv(g) && g.plattform === plattform && Math.abs(g.x - x) < welt.CONFIG.GEGNER_MIN_ABSTAND);
 }
 
-function istZuNahAnGegner(welt, x, plattform) {
-    return welt.listen.gegner.some(gegner => {
-        if (!istAktiverGegner(gegner)) {
-            return false;
-        }
-
-        if (gegner.plattform !== plattform) {
-            return false;
-        }
-
-        return Math.abs(gegner.x - x) < welt.CONFIG.GEGNER_MIN_ABSTAND;
-    });
+function erstelleElement(typ) {
+    const e = document.createElement("div");
+    e.classList.add("gegner", GEGNER_TYPEN[typ]?.klasse || "gegner-gruen");
+    e.innerHTML = `<div class="gegnerAuge gegnerAugeLinks"></div><div class="gegnerAuge gegnerAugeRechts"></div><div class="gegnerKern"></div>`;
+    return e;
 }
 
-function erstelleGegnerElement() {
-    const element = document.createElement("div");
-    element.classList.add("gegner", "gegner-spawn");
-    element.innerHTML = `
-        <div class="gegnerAuge gegnerAugeLinks"></div>
-        <div class="gegnerAuge gegnerAugeRechts"></div>
-    `;
-    return element;
-}
+export function neuenGegnerErzeugen(welt, spielfeld, zielTyp = null) {
+    const aktiv = welt.listen.gegner.filter(istAktiv).length;
+    if (aktiv >= welt.CONFIG.gegnerMaximal || welt.status.x > welt.CONFIG.MAX_WELT_BREITE - 2500) return false;
 
-function ermittleLaufgrenzen(welt, plattform, x) {
-    if (plattform.typ === "boden") {
-        return {
-            links: Math.max(0, x - 320),
-            rechts: x + 850
-        };
-    }
+    const typ = waehleTyp(welt);
+    const regel = GEGNER_TYPEN[typ];
+    const bevorzugterTyp = zielTyp || welt.CONFIG.gegnerMix[Math.floor(Math.random() * welt.CONFIG.gegnerMix.length)];
+    let plattform;
+    let x;
 
-    return {
-        links: plattform.x,
-        rechts: plattform.x + plattform.breite - welt.CONFIG.GEGNER_BREITE
-    };
-}
-
-export function neuenGegnerErzeugen(welt, zielTyp = "plattform") {
-    const aktiveAnzahl = welt.listen.gegner.filter(istAktiverGegner).length;
-
-    if (aktiveAnzahl >= welt.CONFIG.GEGNER_MAXIMAL) {
-        return false;
-    }
-
-    const boden = findeBoden(welt);
-    const plattform = findePlattformSpawn(welt);
-
-    let spawnPlattform = null;
-    let x = null;
-
-    if (zielTyp === "boden") {
-        const spawn = findeBodenSpawn(welt);
-
-        if (!spawn) {
-            return false;
-        }
-
-        spawnPlattform = spawn.plattform;
-        x = spawn.x;
+    if (bevorzugterTyp === "plattform") {
+        plattform = waehleSpawnPlattform(welt);
+        if (!plattform) return false;
+        x = plattform.x + 12 + Math.random() * Math.max(8, plattform.breite - welt.CONFIG.GEGNER_BREITE - 24);
     } else {
-        if (!plattform) {
-            return false;
-        }
-
-        spawnPlattform = plattform;
-        x =
-            plattform.x +
-            12 +
-            Math.random() *
-            Math.max(10, plattform.breite - welt.CONFIG.GEGNER_BREITE - 24);
+        plattform = findeBoden(welt);
+        if (!plattform) return false;
+        x = Math.min(
+            welt.CONFIG.MAX_WELT_BREITE - 100,
+            welt.status.x + 1100 + Math.random() * 700
+        );
     }
 
-    if (!spawnPlattform || x === null) {
-        return false;
-    }
+    if (kollidiertMitAnderem(welt, x, plattform)) return false;
 
-    if (istZuNahAnGegner(welt, x, spawnPlattform)) {
-        return false;
-    }
-
-    const y = spawnPlattform.y - welt.CONFIG.GEGNER_HOEHE;
-    const grenzen = ermittleLaufgrenzen(welt, spawnPlattform, x);
-    const element = erstelleGegnerElement();
+    const y = plattform.y - welt.CONFIG.GEGNER_HOEHE;
+    const e = erstelleElement(typ);
     const jetzt = performance.now();
+    const grenzen = plattform.typ === "boden"
+        ? { links: Math.max(0, x - 350), rechts: Math.min(welt.CONFIG.MAX_WELT_BREITE - welt.CONFIG.GEGNER_BREITE, x + 850) }
+        : { links: plattform.x, rechts: plattform.x + plattform.breite - welt.CONFIG.GEGNER_BREITE };
 
     const gegner = {
-        element,
+        element: e,
+        typ,
         x,
         y,
         vorherigesY: y,
         geschwindigkeitY: 0,
         istAmBoden: true,
-        plattform: spawnPlattform,
+        plattform,
         laufLinks: grenzen.links,
         laufRechts: grenzen.rechts,
-        richtung: Math.random() > 0.5 ? "rechts" : "links",
-        geschwindigkeit: 1.5 + Math.random() * 1.1,
+        richtung: Math.random() < 0.5 ? "links" : "rechts",
+        geschwindigkeit: regel.tempo,
+        sprungKraft: regel.sprung,
+        sprungChance: regel.springen,
         blockiertBis: 0,
-        spawnStart: jetzt,
-        spawnSchutzBis: jetzt + welt.CONFIG.GEGNER_SPAWN_DAUER,
-        sprungZaehler: 0,
-        naechsterSprung: 0,
+        spawnBis: jetzt + 650,
         eliminiert: false,
-        entfernt: false,
-        aktiv: false
+        entfernt: false
     };
 
-    if (spawnPlattform.typ !== "boden") {
-        spawnPlattform.gegnerAnzahl = 1;
-    }
-
-    element.style.left = `${x - welt.status.kameraX}px`;
-    element.style.top = `${y}px`;
-    document.getElementById("spielfeld").appendChild(element);
+    if (plattform.typ !== "boden") plattform.gegnerAnzahl += 1;
+    e.style.left = `${x - welt.status.kameraX}px`;
+    e.style.top = `${y}px`;
+    e.classList.add("gegner-spawn");
+    spielfeld.appendChild(e);
     welt.listen.gegner.push(gegner);
-
-    window.setTimeout(() => {
-        if (!gegner.element || gegner.eliminiert || gegner.entfernt) {
-            return;
-        }
-
-        gegner.aktiv = true;
-        gegner.element.classList.add("aktiv");
-        gegner.element.classList.remove("gegner-spawn");
-    }, welt.CONFIG.GEGNER_SPAWN_DAUER);
-
     return true;
 }
 
-function entferneGegnerAusWelt(welt, gegner) {
-    if (gegner.entfernt) {
-        return;
-    }
-
+function entferneGegner(welt, gegner) {
+    if (!gegner || gegner.entfernt) return;
     gegner.entfernt = true;
-
-    if (
-        gegner.plattform &&
-        gegner.plattform.typ !== "boden" &&
-        gegner.plattform.gegnerAnzahl > 0
-    ) {
-        gegner.plattform.gegnerAnzahl = 0;
-    }
-
-    const index = welt.listen.gegner.indexOf(gegner);
-
-    if (index >= 0) {
-        welt.listen.gegner.splice(index, 1);
-    }
-
+    if (gegner.plattform && gegner.plattform.typ !== "boden") gegner.plattform.gegnerAnzahl = Math.max(0, gegner.plattform.gegnerAnzahl - 1);
     gegner.element?.remove();
+    const i = welt.listen.gegner.indexOf(gegner);
+    if (i >= 0) welt.listen.gegner.splice(i, 1);
 }
 
-function gegnerSpringen(gegner, welt) {
-    if (
-        gegner.sprungZaehler <= 0 ||
-        !gegner.istAmBoden ||
-        performance.now() < gegner.naechsterSprung
-    ) {
-        return;
-    }
-
-    gegner.geschwindigkeitY = welt.CONFIG.GEGNER_SPRUNG_KRAFT;
-    gegner.istAmBoden = false;
-    gegner.sprungZaehler -= 1;
-    gegner.naechsterSprung = performance.now() + 70;
+function springen(g, welt) {
+    if (!g.istAmBoden) return;
+    if (Math.random() > g.sprungChance) return;
+    g.geschwindigkeitY = g.sprungKraft;
+    g.istAmBoden = false;
 }
 
-function aktualisiereVertikal(gegner, welt) {
-    if (gegner.istAmBoden && gegner.sprungZaehler <= 0) {
-        return;
-    }
+function vertikal(g, welt) {
+    g.vorherigesY = g.y;
+    g.geschwindigkeitY += welt.CONFIG.SCHWERKRAFT * 0.8;
+    g.y += g.geschwindigkeitY;
 
-    gegner.vorherigesY = gegner.y;
-    gegner.geschwindigkeitY += welt.CONFIG.GEGNER_GRAVITATION;
-    gegner.y += gegner.geschwindigkeitY;
+    let landung = null;
+    const untenAlt = g.vorherigesY + welt.CONFIG.GEGNER_HOEHE;
+    const untenNeu = g.y + welt.CONFIG.GEGNER_HOEHE;
 
-    let gelandet = false;
-
-    for (const plattform of welt.listen.plattformen) {
-        const links = gegner.x;
-        const rechts = gegner.x + welt.CONFIG.GEGNER_BREITE;
-        const unten = gegner.y + welt.CONFIG.GEGNER_HOEHE;
-        const vorherigesUnten = gegner.vorherigesY + welt.CONFIG.GEGNER_HOEHE;
-
-        if (
-            rechts <= plattform.x ||
-            links >= plattform.x + plattform.breite
-        ) {
-            continue;
-        }
-
-        if (
-            gegner.geschwindigkeitY >= 0 &&
-            vorherigesUnten <= plattform.y &&
-            unten >= plattform.y
-        ) {
-            gegner.y = plattform.y - welt.CONFIG.GEGNER_HOEHE;
-            gegner.geschwindigkeitY = 0;
-            gegner.istAmBoden = true;
-            gegner.plattform = plattform;
-
-            if (plattform.typ !== "boden") {
-                plattform.gegnerAnzahl = 1;
-            }
-
-            gelandet = true;
+    for (const p of welt.listen.plattformen) {
+        if (g.x + welt.CONFIG.GEGNER_BREITE <= p.x || g.x >= p.x + p.breite) continue;
+        if (g.geschwindigkeitY >= 0 && untenAlt <= p.y && untenNeu >= p.y) {
+            landung = p;
             break;
         }
     }
 
-    if (
-        !gelandet &&
-        gegner.y + welt.CONFIG.GEGNER_HOEHE >= welt.CONFIG.BODEN_Y
-    ) {
-        gegner.y = welt.CONFIG.BODEN_Y - welt.CONFIG.GEGNER_HOEHE;
-        gegner.geschwindigkeitY = 0;
-        gegner.istAmBoden = true;
-        gegner.plattform = findeBoden(welt);
+    if (landung) {
+        g.y = landung.y - welt.CONFIG.GEGNER_HOEHE;
+        g.geschwindigkeitY = 0;
+        g.istAmBoden = true;
+        if (g.plattform !== landung && g.plattform?.typ !== "boden") g.plattform.gegnerAnzahl = Math.max(0, g.plattform.gegnerAnzahl - 1);
+        g.plattform = landung;
+        if (landung.typ !== "boden") landung.gegnerAnzahl += 1;
+        g.laufLinks = landung.typ === "boden" ? Math.max(0, g.x - 350) : landung.x;
+        g.laufRechts = landung.typ === "boden" ? Math.min(welt.CONFIG.MAX_WELT_BREITE - welt.CONFIG.GEGNER_BREITE, g.x + 850) : landung.x + landung.breite - welt.CONFIG.GEGNER_BREITE;
+        return;
+    }
+
+    const boden = findeBoden(welt);
+    if (boden && g.y + welt.CONFIG.GEGNER_HOEHE >= boden.y) {
+        g.y = boden.y - welt.CONFIG.GEGNER_HOEHE;
+        g.geschwindigkeitY = 0;
+        g.istAmBoden = true;
+        g.plattform = boden;
+        g.laufLinks = Math.max(0, g.x - 350);
+        g.laufRechts = Math.min(welt.CONFIG.MAX_WELT_BREITE - welt.CONFIG.GEGNER_BREITE, g.x + 850);
     }
 }
 
-function stosseGegnerAuseinander(a, b) {
-    if (!istAktiverGegner(a) || !istAktiverGegner(b)) {
-        return;
-    }
-
-    if (a.plattform !== b.plattform) {
-        return;
-    }
-
-    const gleicheEbene = Math.abs(a.y - b.y) < 35;
-    const beruehrung =
-        a.x < b.x + 60 &&
-        a.x + 60 > b.x;
-
-    if (!gleicheEbene || !beruehrung) {
-        return;
-    }
-
+export function aktualisiereGegner(welt, spielfeld) {
     const jetzt = performance.now();
 
-    if (a.blockiertBis > jetzt || b.blockiertBis > jetzt) {
-        return;
+    for (const g of [...welt.listen.gegner]) {
+        if (g.x < welt.status.x - 1500 || g.x > welt.CONFIG.MAX_WELT_BREITE + 500) entferneGegner(welt, g);
     }
 
-    if (a.x <= b.x) {
-        a.richtung = "links";
-        b.richtung = "rechts";
-    } else {
-        a.richtung = "rechts";
-        b.richtung = "links";
-    }
+    if (!welt.status.spielGestartet || welt.status.spielBeendet) return;
 
-    a.blockiertBis = jetzt + STOSS_DAUER;
-    b.blockiertBis = jetzt + STOSS_DAUER;
-}
-
-export function aktualisiereGegner(welt) {
-    for (const gegner of [...welt.listen.gegner]) {
-        if (
-            istAktiverGegner(gegner) &&
-            gegner.x < welt.status.x - GEGNER_ENTFERNUNG_HINTER_SPIELER
-        ) {
-            entferneGegnerAusWelt(welt, gegner);
+    if (jetzt >= welt.status.levelDaten.naechsterGegnerSpawn) {
+        welt.status.levelDaten.naechsterGegnerSpawn = jetzt + welt.CONFIG.gegnerIntervall;
+        const aktive = welt.listen.gegner.filter(istAktiv).length;
+        if (aktive < welt.CONFIG.gegnerMaximal) {
+            neuenGegnerErzeugen(welt, spielfeld);
+            if (aktive + 1 < welt.CONFIG.gegnerMaximal && Math.random() < 0.42) neuenGegnerErzeugen(welt, spielfeld);
         }
     }
 
-    if (!welt.status.spielGestartet || welt.status.spielBeendet) {
-        return;
-    }
-
-    const jetzt = performance.now();
-
-    if (!welt.status.levelDaten.naechsterGegnerSpawn) {
-        welt.status.levelDaten.naechsterGegnerSpawn = jetzt + welt.CONFIG.GEGNER_SPAWN_INTERVAL;
-        return;
-    }
-
-    if (jetzt < welt.status.levelDaten.naechsterGegnerSpawn) {
-        return;
-    }
-
-    welt.status.levelDaten.naechsterGegnerSpawn = jetzt + welt.CONFIG.GEGNER_SPAWN_INTERVAL;
-
-    const aktiveAnzahl = welt.listen.gegner.filter(istAktiverGegner).length;
-
-    if (aktiveAnzahl >= welt.CONFIG.GEGNER_MAXIMAL) {
-        return;
-    }
-
-    const haelfte = Math.floor(welt.CONFIG.GEGNER_MAXIMAL / 2);
-
-    if (aktiveAnzahl <= haelfte) {
-        neuenGegnerErzeugen(welt, "boden");
-        if (welt.listen.gegner.filter(istAktiverGegner).length < welt.CONFIG.GEGNER_MAXIMAL) {
-            neuenGegnerErzeugen(welt, "plattform");
-        }
-    } else {
-        const ersteArt = Math.random() < 0.5 ? "boden" : "plattform";
-        neuenGegnerErzeugen(welt, ersteArt);
-        if (welt.listen.gegner.filter(istAktiverGegner).length < welt.CONFIG.GEGNER_MAXIMAL) {
-            neuenGegnerErzeugen(welt, ersteArt === "boden" ? "plattform" : "boden");
-        }
+    const max = welt.CONFIG.gegnerMaximal;
+    if (welt.listen.gegner.length > max + 4) {
+        welt.listen.gegner.slice(0, welt.listen.gegner.length - max).forEach(g => entferneGegner(welt, g));
     }
 }
 
 export function bewegeGegner(welt) {
-    for (let i = 0; i < welt.listen.gegner.length; i++) {
-        const gegner = welt.listen.gegner[i];
+    const jetzt = performance.now();
+    for (const g of [...welt.listen.gegner]) {
+        if (g.eliminiert && jetzt >= (g.wegBis || 0)) entferneGegner(welt, g);
+    }
+    for (let i = 0; i < welt.listen.gegner.length; i += 1) {
+        const g = welt.listen.gegner[i];
+        if (!istAktiv(g)) continue;
 
-        if (!istAktiverGegner(gegner)) {
-            continue;
-        }
+        if (jetzt >= g.spawnBis) g.element.classList.add("aktiv");
+        if (jetzt < g.spawnBis) continue;
 
-        if (!gegner.aktiv) {
-            gegner.element.style.left = `${gegner.x - welt.status.kameraX}px`;
-            gegner.element.style.top = `${gegner.y}px`;
-            continue;
-        }
+        if (g.istAmBoden && Math.random() < g.sprungChance * 0.04) springen(g, welt);
+        vertikal(g, welt);
 
-        gegnerSpringen(gegner, welt);
-        aktualisiereVertikal(gegner, welt);
-
-        const jetzt = performance.now();
-
-        if (jetzt >= gegner.blockiertBis && gegner.istAmBoden) {
-            if (gegner.richtung === "rechts") {
-                gegner.x += gegner.geschwindigkeit;
-            } else {
-                gegner.x -= gegner.geschwindigkeit;
+        if (g.istAmBoden) {
+            g.x += g.richtung === "rechts" ? g.geschwindigkeit : -g.geschwindigkeit;
+            if (g.x <= g.laufLinks) {
+                g.x = g.laufLinks;
+                g.richtung = "rechts";
             }
-
-            if (gegner.x <= gegner.laufLinks) {
-                gegner.x = gegner.laufLinks;
-                gegner.richtung = "rechts";
-            }
-
-            if (gegner.x >= gegner.laufRechts) {
-                gegner.x = gegner.laufRechts;
-                gegner.richtung = "links";
+            if (g.x >= g.laufRechts) {
+                g.x = g.laufRechts;
+                g.richtung = "links";
             }
         }
 
-        for (let j = i + 1; j < welt.listen.gegner.length; j++) {
-            stosseGegnerAuseinander(gegner, welt.listen.gegner[j]);
+        for (let j = i + 1; j < welt.listen.gegner.length; j += 1) {
+            const b = welt.listen.gegner[j];
+            if (!istAktiv(b) || g.plattform !== b.plattform) continue;
+            const delta = b.x - g.x;
+            if (Math.abs(delta) < 55) {
+                const schub = delta >= 0 ? -0.65 : 0.65;
+                g.x += schub;
+                b.x -= schub;
+            }
         }
 
-        gegner.element.style.left = `${gegner.x - welt.status.kameraX}px`;
-        gegner.element.style.top = `${gegner.y}px`;
-        gegner.element.classList.toggle("gegner-springt", !gegner.istAmBoden);
-        gegner.element.style.transform =
-            gegner.richtung === "rechts" ? "scaleX(1)" : "scaleX(-1)";
+        g.element.classList.toggle("gegner-springt", !g.istAmBoden);
+        g.element.classList.toggle("gegner-schnell", g.typ === "rot");
+        g.element.style.left = `${g.x - welt.status.kameraX}px`;
+        g.element.style.top = `${g.y}px`;
+        g.element.style.transform = g.richtung === "rechts" ? "scaleX(1)" : "scaleX(-1)";
     }
 }
 
 function spielerHitbox(welt) {
     return {
         links: welt.status.x + welt.CONFIG.SPIELER_HITBOX_X,
-        rechts:
-            welt.status.x +
-            welt.CONFIG.SPIELER_HITBOX_X +
-            welt.CONFIG.SPIELER_HITBOX_BREITE,
+        rechts: welt.status.x + welt.CONFIG.SPIELER_HITBOX_X + welt.CONFIG.SPIELER_HITBOX_BREITE,
         oben: welt.status.y + welt.CONFIG.SPIELER_HITBOX_Y,
-        unten:
-            welt.status.y +
-            welt.CONFIG.SPIELER_HITBOX_Y +
-            welt.CONFIG.SPIELER_HITBOX_HOEHE
+        unten: welt.status.y + welt.CONFIG.SPIELER_HITBOX_Y + welt.CONFIG.SPIELER_HITBOX_HOEHE
     };
-}
-
-function gegnerHitbox(welt, gegner) {
-    return {
-        links: gegner.x + 7,
-        rechts: gegner.x + welt.CONFIG.GEGNER_BREITE - 7,
-        oben: gegner.y + 5,
-        unten: gegner.y + welt.CONFIG.GEGNER_HOEHE - 4
-    };
-}
-
-function gegnerAusschalten(welt, gegner) {
-    gegner.eliminiert = true;
-
-    if (
-        gegner.plattform &&
-        gegner.plattform.typ !== "boden"
-    ) {
-        gegner.plattform.gegnerAnzahl = 0;
-    }
-
-    gegner.element.classList.remove("gegner-spawn", "aktiv");
-    gegner.element.classList.add("gegner-wegklappen");
-
-    window.setTimeout(() => {
-        entferneGegnerAusWelt(welt, gegner);
-    }, 450);
-}
-
-function spielerTreffer(welt, gegner) {
-    const jetzt = performance.now();
-
-    if (jetzt < welt.status.unverwundbarBis) {
-        return;
-    }
-
-    welt.status.unverwundbarBis = jetzt + welt.CONFIG.UNVERWUNDBARKEIT;
-    welt.status.blinkBis = jetzt + welt.CONFIG.BLINK_DAUER;
-    welt.status.trefferrichtung = welt.status.x < gegner.x ? -1 : 1;
-    welt.status.geschwindigkeitY = -8;
-    welt.status.x += welt.status.trefferrichtung * 22;
-
-    if (welt.status.levelId === "leicht") {
-        welt.status.spielZeit += 1;
-    }
-
-    if (welt.status.levelId === "mittel") {
-        welt.status.laufGeschwindigkeitsFaktor = 0.75;
-        welt.status.laufModifikatorBis = jetzt + 1000;
-    }
-
-    const spieler = document.getElementById("spieler");
-    spieler?.classList.remove("treffer-blinken");
-    void spieler?.offsetWidth;
-    spieler?.classList.add("treffer-blinken");
-
-    gegner.sprungZaehler = 2;
-    gegner.naechsterSprung = jetzt;
-}
-
-export function aktualisiereUnverwundbarkeit(welt) {
-    const spieler = document.getElementById("spieler");
-
-    if (!spieler) {
-        return;
-    }
-
-    const jetzt = performance.now();
-
-    if (jetzt >= welt.status.blinkBis) {
-        spieler.classList.remove("treffer-blinken");
-    }
-
-    if (
-        welt.status.levelId === "mittel" &&
-        jetzt >= welt.status.laufModifikatorBis
-    ) {
-        welt.status.laufGeschwindigkeitsFaktor = 1;
-    }
 }
 
 export function pruefeGegnerKollision(welt) {
-    const spieler = spielerHitbox(welt);
+    const p = spielerHitbox(welt);
+    const jetzt = performance.now();
 
-    for (const gegner of [...welt.listen.gegner]) {
-        if (
-            !istAktiverGegner(gegner) ||
-            !gegner.aktiv ||
-            performance.now() < gegner.spawnSchutzBis
-        ) {
-            continue;
-        }
+    for (const g of [...welt.listen.gegner]) {
+        if (!istAktiv(g) || jetzt < g.spawnBis) continue;
 
-        const feind = gegnerHitbox(welt, gegner);
+        const e = { links: g.x + 7, rechts: g.x + welt.CONFIG.GEGNER_BREITE - 7, oben: g.y + 4, unten: g.y + welt.CONFIG.GEGNER_HOEHE - 4 };
+        const trifft = p.rechts > e.links && p.links < e.rechts && p.unten > e.oben && p.oben < e.unten;
+        if (!trifft) continue;
 
-        const trifft =
-            spieler.rechts > feind.links &&
-            spieler.links < feind.rechts &&
-            spieler.unten > feind.oben &&
-            spieler.oben < feind.unten;
-
-        if (!trifft) {
-            continue;
-        }
-
-        const vorherigerFuss =
-            welt.status.vorherigesY +
-            welt.CONFIG.SPIELER_HITBOX_Y +
-            welt.CONFIG.SPIELER_HITBOX_HOEHE;
-
-        const vonOben =
-            welt.status.geschwindigkeitY > 0 &&
-            vorherigerFuss <= feind.oben + 12;
+        const vorherFuss = welt.status.vorherigesY + welt.CONFIG.SPIELER_HITBOX_Y + welt.CONFIG.SPIELER_HITBOX_HOEHE;
+        const vonOben = welt.status.geschwindigkeitY > 0 && vorherFuss <= e.oben + 14;
 
         if (vonOben) {
             welt.status.geschwindigkeitY = welt.CONFIG.SPRUNG_KRAFT * 0.68;
+            g.eliminiert = true;
+            g.wegBis = jetzt + 280;
+            g.element.classList.add("gegner-wegklappen");
+            if (g.plattform?.typ !== "boden") g.plattform.gegnerAnzahl = Math.max(0, g.plattform.gegnerAnzahl - 1);
+            if (welt.status.levelId === "leicht") welt.status.spielZeit = Math.max(0, welt.status.spielZeit - 2);
+        } else if (jetzt >= welt.status.unverwundbarBis) {
+            welt.status.unverwundbarBis = jetzt + welt.CONFIG.UNVERWUNDBARKEIT;
+            welt.status.blinkBis = jetzt + welt.CONFIG.BLINK_DAUER;
+            welt.status.trefferrichtung = welt.status.x < g.x ? -1 : 1;
+            welt.status.x += welt.status.trefferrichtung * 26;
+            welt.status.geschwindigkeitY = -8;
 
-            if (welt.status.levelId === "leicht") {
-                welt.status.spielZeit = Math.max(0, welt.status.spielZeit - 2);
-            }
-
+            if (welt.status.levelId === "leicht") welt.status.spielZeit += 1;
             if (welt.status.levelId === "mittel") {
-                welt.status.laufGeschwindigkeitsFaktor = 1.5;
-                welt.status.laufModifikatorBis = performance.now() + 2000;
+                welt.status.laufGeschwindigkeitsFaktor = g.typ === "rot" ? 0.58 : 0.75;
+                welt.status.laufModifikatorBis = jetzt + (g.typ === "violett" ? 700 : 1300);
             }
-
-            gegnerAusschalten(welt, gegner);
-        } else {
-            spielerTreffer(welt, gegner);
+            document.getElementById("spieler")?.classList.add("treffer-blinken");
         }
     }
+}
+
+export function aktualisiereUnverwundbarkeit(welt) {
+    const e = document.getElementById("spieler");
+    if (!e) return;
+    const jetzt = performance.now();
+    if (jetzt >= welt.status.blinkBis) e.classList.remove("treffer-blinken");
+    if (jetzt >= welt.status.laufModifikatorBis) welt.status.laufGeschwindigkeitsFaktor = 1;
 }

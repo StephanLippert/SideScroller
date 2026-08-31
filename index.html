@@ -14,71 +14,38 @@
             <div class="startPanel">
                 <p class="kicker">HAPPY STICKMAN</p>
                 <h1>Wähle dein Level</h1>
-                <p class="untertitel">
-                    Springe über die Plattformen, weiche Gegnern aus und sammle Münzen.
-                </p>
+                <p class="untertitel">Springe über die Plattformen, weiche Gegnern aus und sammle Münzen.</p>
 
                 <div class="levelAuswahl">
                     <article class="levelKarte">
                         <div class="levelNummer">LEVEL 1</div>
                         <h2>Leicht</h2>
-                        <p>
-                            Sammle als Erster 100 Münzen.
-                            Deine Zeit wird als Highscore gespeichert.
-                        </p>
-
+                        <p>Sammle 100 Münzen möglichst schnell.</p>
                         <div class="highscoreTitel">Bester Highscore</div>
-                        <div id="bestwert-leicht" class="bestwert">
-                            Noch kein Highscore
-                        </div>
-
-                        <button class="levelStartButton" data-level="leicht">
-                            Leicht starten
-                        </button>
+                        <div id="bestwert-leicht" class="bestwert">Noch kein Highscore</div>
+                        <button class="levelStartButton" data-level="leicht">Level starten</button>
                     </article>
 
                     <article class="levelKarte">
                         <div class="levelNummer">LEVEL 2</div>
                         <h2>Mittel</h2>
-                        <p>
-                            100 Münzen sind verteilt.
-                            Alle 10 Sekunden verschwindet eine Münze.
-                            Sammle sie möglichst schnell.
-                        </p>
-
+                        <p>Sammle 100 Münzen möglichst schnell.</p>
                         <div class="highscoreTitel">Bester Highscore</div>
-                        <div id="bestwert-mittel" class="bestwert">
-                            Noch kein Highscore
-                        </div>
-
-                        <button class="levelStartButton" data-level="mittel">
-                            Mittel starten
-                        </button>
+                        <div id="bestwert-mittel" class="bestwert">Noch kein Highscore</div>
+                        <button class="levelStartButton" data-level="mittel">Mittel starten</button>
                     </article>
 
                     <article class="levelKarte">
                         <div class="levelNummer">LEVEL 3</div>
                         <h2>Schwer</h2>
-                        <p>
-                            Du hast 60 Sekunden.
-                            Sammle so viele Münzen wie möglich.
-                            Die Münzanzahl entscheidet.
-                        </p>
-
+                        <p>Du hast 60 Sekunden für so viele Münzen wie möglich.</p>
                         <div class="highscoreTitel">Bester Highscore</div>
-                        <div id="bestwert-schwer" class="bestwert">
-                            Noch kein Highscore
-                        </div>
-
-                        <button class="levelStartButton" data-level="schwer">
-                            Schwer starten
-                        </button>
+                        <div id="bestwert-schwer" class="bestwert">Noch kein Highscore</div>
+                        <button class="levelStartButton" data-level="schwer">Level starten</button>
                     </article>
                 </div>
 
-                <div class="steuerungHinweis">
-                    Steuerung: ← → laufen · ↑ springen
-                </div>
+                <div class="steuerungHinweis">Steuerung: ← → laufen · ↑ / Leertaste springen</div>
             </div>
         </section>
 
@@ -94,48 +61,29 @@
                     <div id="muenzAnzeige">Münzen: 0</div>
                 </div>
             </div>
-
-            <div id="spielfeld">
-                <div id="spieler" aria-hidden="true"></div>
-            </div>
+            <div id="spielfeld"></div>
         </section>
 
         <section id="gameOverBildschirm" class="bildschirm versteckt">
             <div class="endPanel">
                 <div class="kicker">ERGEBNIS</div>
-
                 <h2 id="endTitel">Level beendet!</h2>
-
-                <p id="endErgebnisText">
-                    Du hast 0 Münzen gesammelt.
-                </p>
-
+                <p id="endErgebnisText">Du hast 0 Münzen gesammelt.</p>
                 <div id="highscoreEingabe">
                     <input type="text" id="spielerNameInput" placeholder="Dein Name..." maxlength="12">
-
-                    <button id="speichernButton">
-                        Highscore speichern
-                    </button>
+                    <button id="speichernButton">Highscore speichern</button>
                 </div>
-
                 <div id="highscoreBereich">
                     <h3>Top 10</h3>
                     <ol id="highscoreListe"></ol>
                 </div>
-
                 <div class="endButtons">
-                    <button id="neustartButton">
-                        Nochmal spielen
-                    </button>
-
-                    <button id="startMenuButton" class="sekundaerButton">
-                        Levelauswahl
-                    </button>
+                    <button id="neustartButton">Nochmal spielen</button>
+                    <button id="startMenuButton" class="sekundaerButton">Levelauswahl</button>
                 </div>
             </div>
         </section>
     </main>
-
     <script type="module" src="spiel.js"></script>
 </body>
 

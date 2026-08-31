@@ -49,7 +49,7 @@ input {
     width: 100%;
     padding: 34px;
     background: rgba(10, 25, 47, 0.94);
-    border: 3px solid #00ffff;
+    border: 3rem solid #00ffff;
     border-radius: 16px;
     box-shadow: 0 0 35px rgba(0, 255, 255, 0.25);
     text-align: center;
@@ -126,10 +126,7 @@ input {
     padding: 11px 15px;
     cursor: pointer;
     font-weight: bold;
-    transition:
-        transform 0.15s ease,
-        box-shadow 0.15s ease,
-        background 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .levelStartButton,
@@ -212,12 +209,10 @@ input {
     border-radius: 8px;
     box-shadow: 0 0 24px rgba(0, 255, 255, 0.22);
     overflow: hidden;
-
-    background:
-        linear-gradient(to bottom,
-            rgba(95, 144, 217, 0.95) 0%,
-            rgba(72, 105, 158, 0.95) 68%,
-            rgba(48, 71, 94, 1) 100%);
+    background: linear-gradient(to bottom,
+            rgba(118, 165, 237, 0.95) 0%,
+            rgba(66, 111, 182, 0.95) 68%,
+            rgb(40, 67, 94) 100%);
 }
 
 #spielfeld::after {
@@ -237,28 +232,33 @@ input {
     left: 0;
     top: 0;
     z-index: 30;
-
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-    background-image: url("./images/StickmanStandingStart.png");
-
     transform-origin: center bottom;
+    overflow: visible;
 }
 
 #spieler.treffer-blinken {
     animation: spielerBlinken 0.2s steps(1, end) infinite;
 }
 
-#spieler.spieler-laeuft {
+#spieler svg {
+    display: block;
+    width: 80px;
+    height: 90px;
+    overflow: visible;
+    filter: drop-shadow(0 0 6px rgb(227, 158, 38));
+}
+
+#spieler.spieler-laeuft svg {
     animation: spielerLaufen 0.18s ease-in-out infinite alternate;
-    filter: drop-shadow(0 0 6px rgba(0, 255, 255, 0.35));
+}
+
+#spieler.spieler-springt svg {
+    filter: drop-shadow(0 0 8px rgba(227, 158, 38));
 }
 
 .plattform {
     position: absolute;
     z-index: 10;
-
     background: linear-gradient(180deg, #00ffcc, #00b9a1);
     border: 2px solid white;
     box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
@@ -270,30 +270,95 @@ input {
     height: 60px;
     position: absolute;
     z-index: 22;
-
     background: linear-gradient(180deg, #8a2be2, #4b0082);
     border: 3px solid #d6b3ff;
     border-radius: 15px;
     box-shadow: 0 0 15px #7d4cff;
-
+    transition: filter 0.12s ease;
     transform-origin: center bottom;
     opacity: 1;
 }
 
+
+.gegner-gruen {
+    background: linear-gradient(180deg, #27e36b, #087a35);
+    border-color: #a7ffca;
+    box-shadow: 0 0 15px rgba(39, 227, 107, 0.55);
+}
+
+.gegner-violett {
+    background: linear-gradient(180deg, #9b45ff, #4b0082);
+    border-color: #e0c2ff;
+    box-shadow: 0 0 15px rgba(155, 69, 255, 0.6);
+}
+
+.gegner-rot {
+    background: linear-gradient(180deg, #ff5263, #970b1d);
+    border-color: #ffd0d5;
+    box-shadow: 0 0 18px rgba(255, 82, 99, 0.7);
+}
+
+.gegner-blau {
+    background: linear-gradient(180deg, #3184ea, #12489a);
+    border-color: #c8e1ff;
+    box-shadow: 0 0 18px rgba(75, 156, 255, 0.7);
+}
+
+.gegner-schnell {
+    animation: gegnerPuls 0.45s ease-in-out infinite alternate;
+}
+
+.gegnerKern {
+    position: absolute;
+    left: 50%;
+    bottom: 9px;
+    width: 14px;
+    height: 14px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.plattform-beweglich {
+    filter: brightness(1.15);
+    box-shadow: 0 0 16px rgba(0, 255, 204, 0.75);
+}
+
+.plattform[style*="top"] {
+    will-change: left, top;
+}
+
+.level-mittel {
+    background: radial-gradient(circle at 35% 25%, rgba(255, 92, 92, 0.16), transparent 28%), radial-gradient(circle at 75% 70%, rgba(255, 208, 72, 0.09), transparent 30%), linear-gradient(180deg, #105294, #09111f 70%, #050c1a);
+}
+
+.level-schwer {
+    background: radial-gradient(circle at 25% 20%, rgba(155, 69, 255, 0.18), transparent 25%), radial-gradient(circle at 80% 45%, rgba(75, 156, 255, 0.13), transparent 30%), linear-gradient(180deg, #12091f, #080b19 70%, #050714);
+}
+
+.level-leicht {
+    background: radial-gradient(circle at 50% 20%, rgb(21, 169, 140), transparent 32%), linear-gradient(180deg, #096e44, #07101e 70%, #050c1a);
+}
+
+@keyframes gegnerPuls {
+    from {
+        filter: brightness(1);
+    }
+
+    to {
+        filter: brightness(1.22);
+    }
+}
+
 .gegner-spawn {
     opacity: 0;
-    transform:
-        translateY(32px) rotateX(86deg) scale(0.12);
-
-    transition:
-        opacity 0.42s ease,
-        transform 0.65s cubic-bezier(0.2, 1.4, 0.45, 1);
+    transform: translateY(32px) rotateX(86deg) scale(0.12);
+    transition: opacity 0.42s ease, transform 0.65s cubic-bezier(0.2, 1.4, 0.45, 1);
 }
 
 .gegner-spawn.aktiv {
     opacity: 1;
-    transform:
-        translateY(0) rotateX(0deg) scale(1);
+    transform: translateY(0) rotateX(0deg) scale(1);
 }
 
 .gegner-springt {
@@ -303,12 +368,8 @@ input {
 .gegner-wegklappen {
     opacity: 0;
     transform-origin: center bottom;
-    transform:
-        perspective(220px) rotateX(82deg) translateY(18px) scaleY(0.15);
-
-    transition:
-        opacity 0.4s ease,
-        transform 0.4s ease;
+    transform: perspective(220px) rotateX(82deg) translateY(18px) scaleY(0.15);
+    transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
 .gegnerAuge {
@@ -333,22 +394,13 @@ input {
     height: 30px;
     position: absolute;
     z-index: 20;
-
     display: grid;
     place-items: center;
-
     border-radius: 50%;
-    background:
-        radial-gradient(circle at 35% 35%,
-            #fff6a3,
-            #ffd700 40%,
-            #d79d00 100%);
-
+    background: radial-gradient(circle at 35% 35%, #fff6a3, #ffd700 40%, #d79d00 100%);
     color: #8d5e00;
     font-weight: 900;
-
     box-shadow: 0 0 15px #ffd700;
-
     animation: muenzeDrehen 1.1s infinite linear;
 }
 
@@ -359,37 +411,28 @@ input {
 .muenze-aufbau {
     opacity: 0;
     transform: scale(0.05) rotateY(80deg);
-
-    animation:
-        muenzeAufbauen 1s ease-out forwards,
-        muenzeDrehen 1.1s 1s infinite linear;
+    animation: muenzeAufbauen 1s ease-out forwards, muenzeDrehen 1.1s 1s infinite linear;
 }
 
 .muenze-verschwindet {
-    animation:
-        muenzeVerschwinden 0.25s ease-in forwards !important;
+    animation: muenzeVerschwinden 0.25s ease-in forwards !important;
 }
 
 #muenzenHinweis {
     position: absolute;
     top: 20px;
     z-index: 40;
-
     display: flex;
     align-items: center;
     gap: 8px;
-
     min-width: 116px;
     padding: 8px 12px;
-
     background: rgba(10, 25, 47, 0.9);
     border: 1px solid #ffd700;
     border-radius: 999px;
-
     color: #ffd700;
     font-size: 13px;
     font-weight: bold;
-
     box-shadow: 0 0 14px rgba(255, 215, 0, 0.25);
 }
 
@@ -404,10 +447,8 @@ input {
 .hinweisMuenze {
     width: 20px;
     height: 20px;
-
     display: grid;
     place-items: center;
-
     border-radius: 50%;
     background: #ffd700;
     color: #8d5e00;
@@ -418,7 +459,6 @@ input {
     position: fixed;
     inset: 0;
     z-index: 100;
-
     background: rgba(5, 12, 26, 0.72);
     backdrop-filter: blur(4px);
 }
@@ -439,26 +479,20 @@ input {
 
 #highscoreEingabe {
     width: 100%;
-
     display: flex;
     flex-direction: column;
     gap: 10px;
-
     margin: 18px 0;
 }
 
 #spielerNameInput {
     width: 100%;
     min-width: 0;
-
     padding: 10px 12px;
-
     border: 2px solid #00ffff;
     border-radius: 8px;
-
     background: #172a45;
     color: white;
-
     outline: none;
 }
 
@@ -478,7 +512,6 @@ input {
     padding: 10px 38px;
     max-height: 220px;
     overflow-y: auto;
-
     background: rgba(23, 42, 69, 0.55);
     border: 1px solid #30475e;
     border-radius: 8px;
