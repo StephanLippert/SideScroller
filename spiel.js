@@ -31,14 +31,34 @@ let spielBeendenAngezeigt = false;
 
 function passeSpielfeldAn() {
     if (!spielfeld || !spielfeldHuelle || !welt) return;
+
     const basisBreite = welt.CONFIG.SPIELFELD_BREITE;
     const basisHoehe = welt.CONFIG.SPIELFELD_HOEHE;
-    const verfuegbareBreite = Math.max(1, spielfeldHuelle.clientWidth);
-    const verfuegbareHoehe = Math.max(1, spielfeldHuelle.clientHeight);
-    const scale = Math.min(verfuegbareBreite / basisBreite, verfuegbareHoehe / basisHoehe);
-    const sichererScale = Math.max(0.35, Math.min(1.15, scale));
+    const istTouchgeraet = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+
+    const horizontalerAbstand = istTouchgeraet ? 12 : 24;
+    const obererAbstand = istTouchgeraet ? 8 : 20;
+    const untererAbstand = istTouchgeraet ? 10 : 24;
+    const statusHoehe = istTouchgeraet ? 40 : 60;
+
+    const verfuegbareBreite = Math.max(280, window.innerWidth - horizontalerAbstand);
+    const verfuegbareHoehe = Math.max(220, window.innerHeight - obererAbstand - untererAbstand - statusHoehe);
+
+    let breite = Math.min(basisBreite, verfuegbareBreite);
+    let hoehe = breite * (basisHoehe / basisBreite);
+
+    if (hoehe > verfuegbareHoehe) {
+        hoehe = verfuegbareHoehe;
+        breite = hoehe * (basisBreite / basisHoehe);
+    }
+
+    const scale = Math.min(breite / basisBreite, hoehe / basisHoehe);
+    const sichererScale = Math.max(0.25, Math.min(1.15, scale));
+
+    spielfeldHuelle.style.width = `${breite}px`;
+    spielfeldHuelle.style.height = `${hoehe}px`;
+    spielfeldHuelle.style.aspectRatio = "auto";
     spielfeld.style.setProperty("--game-scale", String(sichererScale));
-    spielfeldHuelle.style.setProperty("--game-scale", String(sichererScale));
 }
 
 function formatSekunden(wert) {

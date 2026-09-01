@@ -73,6 +73,7 @@ export function initialisiereSteuerung(getWelt, onStart, onSprung) {
 export function setzeMobileSteuerungSichtbarkeit() {
     const touch = document.getElementById("touchSteuerung");
     if (!touch) return;
-    const mobil = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    const mobil = window.matchMedia("(hover: none) and (pointer: coarse)").matches
+        || (window.innerWidth <= 900 && "ontouchstart" in window);
     touch.classList.toggle("sichtbar", mobil);
 }
