@@ -10,7 +10,7 @@ export const LEVELEN = Object.freeze({
     mittel: {
         id: "mittel",
         name: "Mittel",
-        beschreibung: "Engere Sprünge, stärkere Gegner.",
+        beschreibung: "Engere Sprünge, stärkere Gegner und regelmäßig verschwindende Münzen.",
         ziel: "100 Münzen möglichst schnell sammeln"
     },
     schwer: {

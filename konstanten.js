@@ -50,7 +50,7 @@ const LEVEL_CONFIG = {
     },
     mittel: {
         name: "Mittel",
-        ziel: "100 Münzen sammeln",
+        ziel: "100 Münzen sammeln – Münzen verschwinden mit der Zeit",
         startMuenzen: 22,
         muenzenAufVorrat: 100,
         platformGapMin: 85,

@@ -2,16 +2,15 @@ import { erschaffeSpielWelt } from "./konstanten.js";
 import { holeLevel } from "./level.js";
 import { erstelleSpielerElement, setzeSpielerDarstellung, setzeSpielerposition } from "./spieler.js";
 import { erstelleZufaelligePlattformen, aktualisiereEndlessPlattformen, animierePlattformen } from "./plattformen.js";
+import { initialisiereMuenzen, aktualisiereMuenzen, animiereMuenzen, pruefeMuenzenKollision, aktualisiereMuenzHinweis, bereinigeVerschwundeneMuenzen } from "./muenzen.js";
 import { aktualisiereGegner, bewegeGegner, pruefeGegnerKollision, aktualisiereUnverwundbarkeit } from "./gegner.js";
 import { speichereHighscore, zeigeStartHighscores, zeigeHighscoreListe, holeBestenwert } from "./highscore.js";
-import {
-    initialisiereMuenzen, aktualisiereMuenzen, animiereMuenzen, pruefeMuenzenKollision, aktualisiereMuenzHinweis, bereinigeVerschwundeneMuenzen
-} from "./muenzen.js";
-
+import { initialisiereSteuerung, setzeMobileSteuerungSichtbarkeit } from "./steuerung.js";
 
 const startBildschirm = document.getElementById("startBildschirm");
 const spielBereich = document.getElementById("spielBereich");
 const spielfeld = document.getElementById("spielfeld");
+const spielfeldHuelle = document.getElementById("spielfeldHuelle");
 const levelAnzeige = document.getElementById("levelAnzeige");
 const zeitAnzeige = document.getElementById("zeitAnzeige");
 const zielAnzeige = document.getElementById("zielAnzeige");
@@ -29,6 +28,18 @@ let welt = null;
 let frameId = 0;
 let aktuellesLevel = "leicht";
 let spielBeendenAngezeigt = false;
+
+function passeSpielfeldAn() {
+    if (!spielfeld || !spielfeldHuelle || !welt) return;
+    const basisBreite = welt.CONFIG.SPIELFELD_BREITE;
+    const basisHoehe = welt.CONFIG.SPIELFELD_HOEHE;
+    const verfuegbareBreite = Math.max(1, spielfeldHuelle.clientWidth);
+    const verfuegbareHoehe = Math.max(1, spielfeldHuelle.clientHeight);
+    const scale = Math.min(verfuegbareBreite / basisBreite, verfuegbareHoehe / basisHoehe);
+    const sichererScale = Math.max(0.35, Math.min(1.15, scale));
+    spielfeld.style.setProperty("--game-scale", String(sichererScale));
+    spielfeldHuelle.style.setProperty("--game-scale", String(sichererScale));
+}
 
 function formatSekunden(wert) {
     return Math.max(0, Number(wert) || 0).toFixed(1).replace(".", ",");
@@ -195,6 +206,8 @@ function spielStarten(levelId) {
     setzeSpielerposition(welt);
     aktualisiereAnzeige();
     aktualisiereMuenzHinweis(welt);
+    passeSpielfeldAn();
+    setzeMobileSteuerungSichtbarkeit();
 }
 
 function starteEigentlichesSpiel() {
@@ -329,6 +342,18 @@ window.addEventListener("keydown", tastendruck);
 window.addEventListener("keyup", event => {
     if (welt) welt.listen.tasten[event.key] = false;
 });
+window.addEventListener("resize", () => {
+    passeSpielfeldAn();
+    setzeMobileSteuerungSichtbarkeit();
+});
+
+window.addEventListener("orientationchange", () => {
+    window.setTimeout(() => {
+        passeSpielfeldAn();
+        setzeMobileSteuerungSichtbarkeit();
+    }, 120);
+});
+
 window.addEventListener("blur", () => {
     if (!welt) return;
     welt.listen.tasten = Object.create(null);
@@ -356,7 +381,13 @@ speichernButton.addEventListener("click", () => {
     speichernButton.disabled = true;
     speichernButton.textContent = "Gespeichert";
     zeigeHighscoreListe(welt.status.levelId, highscoreListe);
+    initialisiereSteuerung(() => welt, () => starteEigentlichesSpiel(), springe);
     zeigeStartHighscores();
+    setzeMobileSteuerungSichtbarkeit();
+
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+        navigator.serviceWorker.register("./sw.js").catch(() => { });
+    }
 });
 
 neustartButton.addEventListener("click", () => spielStarten(aktuellesLevel));

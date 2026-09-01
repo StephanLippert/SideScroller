@@ -65,7 +65,9 @@ function erstelleGruppe(welt, spielfeld) {
 
     for (let i = 0; i < anzahl; i += 1) {
         const breite = zufall(welt.CONFIG.platformWidthMin, welt.CONFIG.platformWidthMax);
-        const zielY = i === 0 ? welt.CONFIG.BODEN_Y - zufall(82, 150) : y + zufall(-welt.CONFIG.maxHoehenAenderung, welt.CONFIG.maxHoehenAenderung);
+        const zielY = i === 0
+            ? welt.CONFIG.BODEN_Y - zufall(82, 150)
+            : y + zufall(-welt.CONFIG.maxHoehenAenderung, welt.CONFIG.maxHoehenAenderung);
         y = sichereHoehe(welt, y, zielY);
 
         const gap = zufall(welt.CONFIG.platformGapMin, welt.CONFIG.platformGapMax);
@@ -74,9 +76,17 @@ function erstelleGruppe(welt, spielfeld) {
         const istBeweglich = welt.status.levelId === "mittel" && daten.gruppenNummer % 5 === 2 && i === 1;
         const istChaos = welt.status.levelId === "schwer" && daten.gruppenNummer % 4 === 1 && i === 2;
 
-        erstellePlattform(welt, spielfeld, x, y, breite, istChaos ? "gefährlich" :
-            `gruppe-${daten.gruppenNummer}`, istBeweglich ?
-            { beweglich: true, amp: 45, tempo: 0.0018, phase: Math.random() * Math.PI * 2 } : {});
+        erstellePlattform(
+            welt,
+            spielfeld,
+            x,
+            y,
+            breite,
+            istChaos ? "gefährlich" : `gruppe-${daten.gruppenNummer}`,
+            istBeweglich
+                ? { beweglich: true, amp: 45, tempo: 0.0018, phase: Math.random() * Math.PI * 2 }
+                : {}
+        );
 
         x += breite;
     }
@@ -90,7 +100,14 @@ export function erstelleZufaelligePlattformen(welt, spielfeld) {
     welt.listen.plattformen.length = 0;
     erstelleBoden(welt, spielfeld);
 
-    erstellePlattform(welt, spielfeld, 55, welt.CONFIG.BODEN_Y - 145, 280, "start");
+    erstellePlattform(
+        welt,
+        spielfeld,
+        55,
+        welt.CONFIG.BODEN_Y - 145,
+        280,
+        "start"
+    );
 
     welt.status.x = 110;
     welt.status.y = welt.CONFIG.BODEN_Y - 145 - 87;
@@ -110,7 +127,8 @@ export function aktualisiereEndlessPlattformen(welt, spielfeld) {
     }
 
     let sicherheitszaehler = 0;
-    while (weitestesX < welt.status.x + welt.CONFIG.NACHLADE_ABSTAND &&
+    while (
+        weitestesX < welt.status.x + welt.CONFIG.NACHLADE_ABSTAND &&
         weitheitsLimitNochNichtErreicht(welt) &&
         sicherheitszaehler < 12
     ) {
